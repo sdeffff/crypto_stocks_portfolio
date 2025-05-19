@@ -39,5 +39,4 @@ async def get_crypto(crypto_name):
 
     return {
         "data": data,
-        "price": formatted
     }
