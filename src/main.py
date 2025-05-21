@@ -1,5 +1,6 @@
 import os
-from typing import List
+import pandas as pd
+from typing import List, Optional
 from sqlalchemy.orm import sessionmaker
 from database.db import db
 from fastapi import FastAPI, Response
@@ -15,6 +16,8 @@ app = FastAPI()
 SessionLocal = sessionmaker(db)
 session = SessionLocal()
 
+cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
+
 @app.get("/")
 def home():
     return {"Data": "test"}
@@ -27,18 +30,20 @@ def get_all_users() -> List[UserType]:
 async def read_item(item_id):
     return {"item_id": item_id}
 
-@app.get("/crypto/{crypto_name}", status_code=200)
-async def get_crypto(crypto_name, res: Response): 
-    cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
-
+"""API to get cryptocurrency in currency we want"""
+@app.get("/crypto/currency/{crypto_name}/{currency}", status_code=200)
+async def get_crypto_price(crypto_name, currency, res: Response): 
     try:
-        data = cg.get_price(ids=crypto_name, vs_currencies='usd')
+        data = cg.get_price(ids=str.lower(crypto_name), 
+                            vs_currencies=str.lower(currency), 
+                            include_market_cap=True,
+                            include_24hr_change=True)
 
-        price = data[f'{crypto_name}']['usd']
+        price = data[f'{crypto_name}'][currency]
 
-        formatted =f"{price:,}".replace(",", " ")
+        formatted = f"{price:,}".replace(",", " ")
 
-        res.status_code = 200
+        res.status_code = 200 
 
         return {
             "data": data,
@@ -48,13 +53,16 @@ async def get_crypto(crypto_name, res: Response):
         res.status_code = 404
 
         return {
-            "Message": "Incorrect crypto",
+            "Message": "Provided incorrect currency or crypto",
         }
 
-@app.post("/auth/register")
-async def register():
-    pass
+@app.get("/crypto/coin-list", status_code=200)
+def get_coin_list(res: Response):
+    try:
+        data = cg.get_coins_list()
+        coinDataFrame = pd.DataFrame.from_dict(data).sort_values('id').reset_index(drop=True)
 
-@app.post("/auth/login")
-async def login():
-    pass
+        return coinDataFrame.to_dict(orient="records")
+    except Exception as e:
+        print(f"Error: {e}")
+        res.status_code = 404
