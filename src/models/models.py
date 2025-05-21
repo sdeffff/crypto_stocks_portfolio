@@ -4,6 +4,7 @@ from database.db import db
 
 Base = declarative_base()
 
+
 class User(Base):
     __tablename__ = "users"
 
@@ -16,5 +17,6 @@ class User(Base):
 
     def __repr__(self) -> str:
         return f"User: {self.id}, email: {self.email}, role: {self.role}"
-    
+
+
 Base.metadata.create_all(bind=db)
