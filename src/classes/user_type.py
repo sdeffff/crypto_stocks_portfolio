@@ -17,3 +17,8 @@ class LoginType(BaseModel):
 
 class CoinsRequest(BaseModel):
     currency: Optional[str] = None
+
+
+class NotifyRequest(BaseModel):
+    crypto_name: str
+    value: int
