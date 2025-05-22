@@ -13,6 +13,7 @@ class User(Base):
     password: Mapped[str]
     country: Mapped[str]
     role: Mapped[str] = mapped_column(String, default="user")
+    pfp: Mapped[str]
 
     def __repr__(self) -> str:
         return f"User: {self.id}, email: {self.email}, role: {self.role}"
