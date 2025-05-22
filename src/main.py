@@ -1,10 +1,11 @@
 import os
+import jwt
 import pandas as pd
 
 from datetime import timedelta
-from typing import List
+from typing import List, Optional
 from database.db import session
-from fastapi import FastAPI, Response, HTTPException
+from fastapi import FastAPI, Response, HTTPException, Cookie
 
 from models.models import User
 
@@ -12,7 +13,7 @@ from classes.user_type import UserType, LoginType
 
 from pycoingecko import CoinGeckoAPI
 
-from auth.auth_service import register_user, check_if_user_exists, create_token
+from auth.auth_service import register_user, check_if_user_exists, create_token, get_user_by_id
 from helpers.pwd_helper import hashPwd, comparePwds
 
 app = FastAPI()
@@ -132,3 +133,44 @@ async def login(data: LoginType, res: Response):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Happened some error with login: {e}")
+
+
+@app.get("/users/{uid}/profile")
+async def user_profile(uid: str, res: Response, access_token: Optional[str] = Cookie(None), refresh_token: Optional[str] = Cookie(None)):
+    if not access_token and not refresh_token:
+        raise HTTPException(status_code=403, detail="You must be authenticated")
+
+    if access_token:
+        auth_data = jwt.decode(access_token, os.getenv("ACCESS_TOKEN_SECRET"), "HS256")
+
+        user_data = await get_user_by_id(uid)
+
+        res.status_code = 200
+
+        return user_data
+    elif refresh_token:
+        auth_data = jwt.decode(refresh_token, os.getenv("REFRESH_TOKEN_SECRET"), "HS256")
+
+        payload = {
+            "uid": auth_data["uid"],
+            "role": auth_data["role"]
+        }
+
+        user_data = await get_user_by_id(uid)
+
+        refreshed_access_token = await create_token(payload, timedelta(minutes=15), os.getenv("ACCESS_TOKEN_SECRET"))
+
+        res.set_cookie(
+            key="access_token",
+            value=refreshed_access_token,
+            httponly=True,
+            secure=os.getenv("PROD") == "production",
+            samesite="lax",
+            max_age=15 * 60
+        )
+
+        res.status_code = 200
+
+        return user_data
+    else:
+        raise HTTPException(status_code=403, detail="You must be authenticated")

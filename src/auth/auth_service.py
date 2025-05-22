@@ -35,3 +35,17 @@ async def register_user(user_data: UserType):
     except BaseException:
         session.rollback()
         raise HTTPException(status_code=500, detail="Database error")
+
+
+async def get_user_by_id(uid: str):
+    uid = int(uid)
+
+    result = session.query(User.id, User.email, User.username, User.country, User.role).filter(User.id == uid).first()
+
+    return {
+        "id": result[0],
+        "email": result[1],
+        "username": result[2],
+        "country": result[3],
+        "role": result[4],
+    }
