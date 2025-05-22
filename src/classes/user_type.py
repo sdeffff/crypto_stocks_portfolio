@@ -13,3 +13,7 @@ class UserType(BaseModel):
 class LoginType(BaseModel):
     email: str
     password: str
+
+
+class CoinsRequest(BaseModel):
+    currency: Optional[str] = None

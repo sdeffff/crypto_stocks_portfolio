@@ -1,19 +1,18 @@
 import os
-import jwt
-import pandas as pd
+# import pandas as pd
 
 from datetime import timedelta
-from typing import List, Optional
+from typing import Optional
 from database.db import session
 from fastapi import FastAPI, Response, HTTPException, Cookie
 
 from models.models import User
 
-from classes.user_type import UserType, LoginType
+from classes.user_type import UserType, LoginType, CoinsRequest
 
 from pycoingecko import CoinGeckoAPI
 
-from auth.auth_service import register_user, check_if_user_exists, create_token, get_user_by_id
+from auth.auth_service import register_user, check_if_user_exists, create_token, get_user_by_id, check_auth
 from helpers.pwd_helper import hashPwd, comparePwds
 
 app = FastAPI()
@@ -26,45 +25,16 @@ def home():
     return {"Data": "test"}
 
 
-@app.get("/users", response_model=List[UserType])
-def get_all_users() -> List[UserType]:
+@app.get("/users")
+async def get_all_users(res: Response, access_token: Optional[str] = Cookie(None), refresh_token: Optional[str] = Cookie(None)):
+    auth_data = await check_auth(res, access_token, refresh_token)
+
+    if auth_data["role"] != "admin":
+        res.status_code = 403
+
+        return HTTPException(status_code=403, detail="You are not allowed to do this")
+
     return session.query(User).all()
-
-
-"""API to get cryptocurrency in currency we want"""
-
-
-@app.get("/crypto/currency/{crypto_name}/{currency}", status_code=200)
-async def get_crypto_price(crypto_name, currency, res: Response):
-    try:
-        data = cg.get_price(ids=str.lower(crypto_name),
-                            vs_currencies=str.lower(currency),
-                            include_market_cap=True,
-                            include_24hr_change=True)
-
-        price = data[f'{crypto_name}'][currency]
-
-        formatted = f"{price:,}".replace(",", " ")
-
-        res.status_code = 200
-
-        return {
-            "data": data,
-            "price": formatted
-        }
-    except BaseException:
-        raise HTTPException(status_code=404, detail="Provided incorrect crypto currency or currency")
-
-
-@app.get("/crypto/coin-list", status_code=200)
-def get_coin_list(res: Response):
-    try:
-        data = cg.get_coins_list()
-        coinDataFrame = pd.DataFrame.from_dict(data).sort_values('id').reset_index(drop=True)
-
-        return coinDataFrame.to_dict(orient="records")
-    except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Happened some error with getting coins data {e}")
 
 
 @app.post("/auth/register", status_code=200)
@@ -76,6 +46,8 @@ async def register(user_data: UserType, res: Response):
         hashedPwd = (await hashPwd(user_data.password)).decode('utf-8')
 
         user_data.password = hashedPwd
+
+        user_data.pfp = f"https://eu.ui-avatars.com/api/?name={user_data.username}"
 
         await register_user(user_data=user_data)
 
@@ -140,37 +112,48 @@ async def user_profile(uid: str, res: Response, access_token: Optional[str] = Co
     if not access_token and not refresh_token:
         raise HTTPException(status_code=403, detail="You must be authenticated")
 
-    if access_token:
-        auth_data = jwt.decode(access_token, os.getenv("ACCESS_TOKEN_SECRET"), "HS256")
+    try:
+        await check_auth(res, access_token, refresh_token)
 
         user_data = await get_user_by_id(uid)
 
         res.status_code = 200
 
         return user_data
-    elif refresh_token:
-        auth_data = jwt.decode(refresh_token, os.getenv("REFRESH_TOKEN_SECRET"), "HS256")
-
-        payload = {
-            "uid": auth_data["uid"],
-            "role": auth_data["role"]
-        }
-
-        user_data = await get_user_by_id(uid)
-
-        refreshed_access_token = await create_token(payload, timedelta(minutes=15), os.getenv("ACCESS_TOKEN_SECRET"))
-
-        res.set_cookie(
-            key="access_token",
-            value=refreshed_access_token,
-            httponly=True,
-            secure=os.getenv("PROD") == "production",
-            samesite="lax",
-            max_age=15 * 60
-        )
-
-        res.status_code = 200
-
-        return user_data
-    else:
+    except BaseException:
         raise HTTPException(status_code=403, detail="You must be authenticated")
+
+
+"""API to get cryptocurrency in currency we want"""
+
+
+@app.get("/crypto/currency/{crypto_name}/{currency}", status_code=200)
+async def get_crypto_price(crypto_name, currency, res: Response):
+    try:
+        data = cg.get_price(ids=str.lower(crypto_name),
+                            vs_currencies=str.lower(currency),
+                            include_market_cap=True,
+                            include_24hr_change=True)
+
+        price = data[f'{crypto_name}'][currency]
+
+        formatted = f"{price:,}".replace(",", " ")
+
+        res.status_code = 200
+
+        return {
+            "data": data,
+            "price": formatted
+        }
+    except BaseException:
+        raise HTTPException(status_code=404, detail="Provided incorrect crypto currency or currency")
+
+
+@app.post("/crypto/coin-list", status_code=200)
+async def get_coin_list(payload: CoinsRequest):
+    try:
+        data = cg.get_coins_markets(vs_currency=payload.currency or "usd", page=1)
+
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"Happened some error with getting coins data {e}")
