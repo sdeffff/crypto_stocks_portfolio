@@ -8,7 +8,7 @@ from fastapi import FastAPI, Response, HTTPException, Cookie
 
 from models.models import User
 
-from classes.user_type import UserType, LoginType, CoinsRequest
+from classes.user_type import UserType, LoginType, CoinsRequest, NotifyRequest
 
 from pycoingecko import CoinGeckoAPI
 
@@ -157,3 +157,8 @@ async def get_coin_list(payload: CoinsRequest):
         return data
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Happened some error with getting coins data {e}")
+
+
+@app.post("/alert/")
+async def subscribe_to_alter(payload: NotifyRequest):
+    pass
