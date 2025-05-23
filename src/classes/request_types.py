@@ -8,6 +8,7 @@ class UserType(BaseModel):
     password: str
     country: str
     role: Optional[str] = "user"
+    pfp: Optional[str] = ""
 
 
 class LoginType(BaseModel):
