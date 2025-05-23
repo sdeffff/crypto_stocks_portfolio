@@ -1,5 +1,6 @@
 import bcrypt
 
+
 async def hashPwd(plainPwd: str):
     bytePwd = plainPwd.encode('utf-8')
     saltRounds = bcrypt.gensalt()

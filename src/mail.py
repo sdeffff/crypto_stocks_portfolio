@@ -19,6 +19,7 @@ mail_config = ConnectionConfig(
 
 mail = FastMail(config=mail_config)
 
+
 def create_message(recipients: list[str], subject: str, body: str):
     result = MessageSchema(recipients=recipients, subject=subject, body=body, subtype=MessageType.html)
 
