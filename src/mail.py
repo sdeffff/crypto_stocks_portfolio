@@ -1,6 +1,9 @@
 import os
 from fastapi_mail import FastMail, ConnectionConfig, MessageSchema, MessageType
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent
 

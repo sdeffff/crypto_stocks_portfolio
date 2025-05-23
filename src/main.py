@@ -15,7 +15,7 @@ from pycoingecko import CoinGeckoAPI
 from auth.auth_service import register_user, check_if_user_exists, create_token, get_user_by_id, check_auth
 from helpers.pwd_helper import hashPwd, comparePwds
 
-# from celery_tasks import send_email
+from celery_worker import send_email
 
 app = FastAPI()
 
@@ -25,6 +25,27 @@ cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
 @app.get("/")
 def home():
     return {"Data": "test"}
+
+
+@app.post("/test-email/")
+async def send_user_email(payload: NotifyRequest, res: Response, access_token: Optional[str] = Cookie(None), refresh_token: Optional[str] = Cookie(None)):
+    auth_data = await check_auth(res, access_token, refresh_token)
+
+    if auth_data:
+        print(auth_data)
+
+        try:
+            send_email.delay([auth_data["email"]], "sample email", f"{payload.crypto_name}, {payload.value}")
+
+            res.status_code = 201
+
+            return {"Message": f"Email was sent successfully to your email: {auth_data['email']}"}
+        except Exception as e:
+            res.status_code = 500
+
+            return HTTPException(status_code=500, detail=f"Failed to send email {e}")
+    else:
+        return HTTPException(status_code=403, detail="You have to be authenticated")
 
 
 @app.get("/users")
@@ -77,7 +98,8 @@ async def login(data: LoginType, res: Response):
 
         payload = {
             "uid": user.id,
-            "role": user.role
+            "role": user.role,
+            "email": user.email
         }
 
         access_token = await create_token(payload, timedelta(minutes=15), os.getenv("ACCESS_TOKEN_SECRET"))

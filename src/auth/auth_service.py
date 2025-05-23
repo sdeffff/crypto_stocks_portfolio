@@ -59,10 +59,10 @@ async def check_auth(res: Response, access_token: Optional[str], refresh_token: 
         if access_token:
             return jwt.decode(access_token, os.getenv("ACCESS_TOKEN_SECRET"), algorithms=["HS256"])
     except jwt.ExpiredSignatureError:
-        # Access token expired, attempt refresh
+        # Access token expired, attempt refresh token
         pass
     except jwt.InvalidTokenError:
-        # Access token invalid, try refresh if available
+        # Access token invalid, try refresh
         pass
 
     if not refresh_token:
@@ -73,7 +73,8 @@ async def check_auth(res: Response, access_token: Optional[str], refresh_token: 
 
         payload = {
             "uid": auth_data["uid"],
-            "role": auth_data["role"]
+            "role": auth_data["role"],
+            "email": auth_data["email"]
         }
 
         new_access_token = await create_token(payload, timedelta(minutes=15), os.getenv("ACCESS_TOKEN_SECRET"))
