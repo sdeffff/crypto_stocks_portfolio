@@ -1,9 +1,11 @@
 from fastapi import HTTPException
-from classes.request_types import NotifyRequest
-from models.models import Subscritions
-from database.db import session
+from src.classes.request_types import NotifyRequest
+from src.models.models import Subscritions
+from src.database.db import session
 
-#basically function to add subscription to table
+# basically function to add subscription to table
+
+
 async def addSubscription(payload: NotifyRequest, uid: int):
     try:
         data = payload.model_dump()
@@ -24,3 +26,16 @@ async def addSubscription(payload: NotifyRequest, uid: int):
         session.rollback()
 
         raise HTTPException(status_code=400, detail=f"Something went wrong {e}")
+
+
+def name_to_sign(name: str):
+    name_sign = {
+        "usd": "$",
+        "eur": "€",
+        "pln": "pln",
+        "czk": "czk",
+        "uah": "₴",
+        "gbp": "£"
+    }
+
+    return name_sign[name]

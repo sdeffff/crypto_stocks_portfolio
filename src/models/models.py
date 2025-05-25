@@ -18,6 +18,7 @@ class User(Base):
     def __repr__(self) -> str:
         return f"User: {self.id}, email: {self.email}, role: {self.role}"
 
+
 class Subscritions(Base):
     __tablename__ = "subscritions"
 

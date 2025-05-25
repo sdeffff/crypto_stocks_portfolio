@@ -184,11 +184,12 @@ async def get_coin_list(payload: CoinsRequest):
 
 # Notify me when 'crypto_name' is going to be less/greater than 'value' 'currency'
 
+
 @app.post("/alert/")
 async def notify_user(payload: NotifyRequest, res: Response, access_token: Optional[str] = Cookie(None), refresh_token: Optional[str] = Cookie(None)):
     if not access_token and not refresh_token:
         raise HTTPException(status_code=403, detail="You must be authenticated")
-    
+
     try:
         auth_data = await check_auth(res, access_token, refresh_token)
 
