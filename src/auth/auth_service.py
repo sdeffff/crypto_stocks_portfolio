@@ -3,13 +3,13 @@ import os
 import dotenv
 from datetime import datetime, timedelta
 from fastapi import HTTPException, Response
-from database.db import session
+from src.database.db import session
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from classes.request_types import UserType
+from src.classes.request_types import UserType
 
-from models.models import User
+from src.models.models import User
 
 dotenv.load_dotenv()
 

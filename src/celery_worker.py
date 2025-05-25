@@ -1,10 +1,10 @@
-from mail import mail, create_message
+from src.mail import mail, create_message
 import asyncio
 from celery import Celery
 import sys
 import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+sys.path.insert(0, os.path.dirname((os.path.abspath(__file__))))
 
 # Create Celery app
 app = Celery(
@@ -26,15 +26,17 @@ app.conf.update(
 
 @app.task
 def send_email(recipients: list[str], subject: str, body: str):
-    print(f"Sending email to: {recipients}, subject: {subject}")
     try:
         message = create_message(recipients, subject, body)
         asyncio.run(mail.send_message(message))
-        print("Email sent successfully")
         return "Email sent successfully"
     except Exception as e:
-        print(f"ERROR sending email: {e}")
         raise e
+
+#Fatching subscriptions from database
+@app.task
+def check_if_notify():
+    pass
 
 
 if __name__ == '__main__':

@@ -1,21 +1,21 @@
 import os
 # import pandas as pd
 
+from dotenv import load_dotenv
 from datetime import timedelta
 from typing import Optional
-from database.db import session
 from fastapi import FastAPI, Response, HTTPException, Cookie
-
-from models.models import User
-
-from classes.request_types import UserType, LoginType, CoinsRequest, NotifyRequest
-
 from pycoingecko import CoinGeckoAPI
 
-from auth.auth_service import register_user, check_if_user_exists, create_token, get_user_by_id, check_auth
-from helpers.pwd_helper import hashPwd, comparePwds
+from src.database.db import session
+from src.models.models import User
+from src.classes.request_types import UserType, LoginType, CoinsRequest, NotifyRequest
+from src.auth.auth_service import register_user, check_if_user_exists, create_token, get_user_by_id, check_auth
+from src.helpers.pwd_helper import hashPwd, comparePwds
+from src.celery_worker import send_email
+from src.helpers.subscription_helper import addSubscription
 
-from celery_worker import send_email
+load_dotenv()
 
 app = FastAPI()
 
@@ -35,7 +35,7 @@ async def send_user_email(payload: NotifyRequest, res: Response, access_token: O
         print(auth_data)
 
         try:
-            send_email.delay([auth_data["email"]], "sample email", f"{payload.crypto_name}, {payload.value}")
+            send_email.delay([auth_data["email"]], "sample email", f"Notify the user with email: {auth_data["email"]} when {payload.crypto_name} is going to be {payload.state} than {payload.value} {payload.currency}")
 
             res.status_code = 201
 
@@ -182,7 +182,20 @@ async def get_coin_list(payload: CoinsRequest):
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Happened some error with getting coins data {e}")
 
+# Notify me when 'crypto_name' is going to be less/greater than 'value' 'currency'
 
 @app.post("/alert/")
-async def notify_user(payload: NotifyRequest):
-    pass
+async def notify_user(payload: NotifyRequest, res: Response, access_token: Optional[str] = Cookie(None), refresh_token: Optional[str] = Cookie(None)):
+    if not access_token and not refresh_token:
+        raise HTTPException(status_code=403, detail="You must be authenticated")
+    
+    try:
+        auth_data = await check_auth(res, access_token, refresh_token)
+
+        res.status_code = 201
+
+        return await addSubscription(payload, auth_data["uid"])
+    except Exception as e:
+        res.status_code = 403
+
+        return HTTPException(status_code=403, detail=f"You are not authenticated {e}")

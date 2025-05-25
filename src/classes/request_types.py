@@ -22,4 +22,6 @@ class CoinsRequest(BaseModel):
 
 class NotifyRequest(BaseModel):
     crypto_name: str
+    operator: str
     value: int
+    currency: str
