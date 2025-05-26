@@ -66,7 +66,7 @@ async def check_auth(res: Response, access_token: Optional[str], refresh_token: 
         pass
 
     if not refresh_token:
-        raise HTTPException(status_code=403, detail="Access token expired or invalid, and no refresh token provided.")
+        raise HTTPException(status_code=401, detail="You are not authenticated, no access and refresh token was found")
 
     try:
         auth_data = jwt.decode(refresh_token, os.getenv("REFRESH_TOKEN_SECRET"), algorithms=["HS256"])

@@ -1,5 +1,6 @@
+from datetime import datetime
 from sqlalchemy.orm import Mapped, mapped_column, declarative_base
-from sqlalchemy import String, ForeignKey
+from sqlalchemy import String, ForeignKey, Boolean
 
 Base = declarative_base()
 
@@ -14,6 +15,7 @@ class User(Base):
     country: Mapped[str]
     role: Mapped[str] = mapped_column(String, default="user")
     pfp: Mapped[str]
+    premium: Mapped[bool] = mapped_column(Boolean, default=False)
 
     def __repr__(self) -> str:
         return f"User: {self.id}, email: {self.email}, role: {self.role}"
@@ -28,3 +30,18 @@ class Subscritions(Base):
     operator: Mapped[str]
     value: Mapped[int]
     currency: Mapped[str]
+
+
+class Notifications(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    uid: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    crypto_name: Mapped[str]
+    operator: Mapped[str]
+    value: Mapped[int]
+    currency: Mapped[str]
+    created_at: Mapped[datetime] = mapped_column(
+        default=datetime.now(),
+        nullable=False
+    )

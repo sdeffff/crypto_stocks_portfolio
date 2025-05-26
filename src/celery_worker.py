@@ -7,7 +7,7 @@ from celery import Celery
 from celery.schedules import crontab
 from src.mail import mail, create_message
 from src.database.db import session
-from src.models.models import Subscritions, User
+from src.models.models import Subscritions, User, Notifications
 from src.helpers.subscription_helper import name_to_sign
 
 load_dotenv()
@@ -43,11 +43,6 @@ def send_email(recipients: list[str], subject: str, body: str):
     except Exception as e:
         raise e
 
-# Fatching subscriptions from database
-
-# Fetch data from database - get all of the subscriptions of the user
-# Fetch data from coin market to compare it if something is okay - send email to user
-
 
 @app.task
 def check_if_notify():
@@ -58,11 +53,21 @@ def check_if_notify():
 
         coin_data = cg.get_price(ids=sub[i].crypto_name, vs_currencies=sub[i].currency, include_market_cap=True)
 
-        if sub[i].operator == "more":
+        if sub[i].operator == "greater":
             if sub[i].value < coin_data[sub[i].crypto_name][sub[i].currency]:
                 send_email.delay([current_user.email],
                                  f"{(sub[i].crypto_name).upper()} is higher than {sub[i].value}{name_to_sign(sub[i].currency) or sub[i].currency}! 📈",
                                  f"The value of {sub[i].crypto_name} has risen above {sub[i].value}{name_to_sign(sub[i].currency) or sub[i].currency}! Current Price - {coin_data[sub[i].crypto_name][sub[i].currency]}{name_to_sign(sub[i].currency) or sub[i].currency} 📊")
+
+                notif = (Notifications(
+                    uid=sub[i].uid,
+                    crypto_name=sub[i].crypto_name,
+                    operator=sub[i].operator,
+                    value=sub[i].value,
+                    currency=sub[i].currency
+                ))
+
+                session.add(notif)
 
                 session.delete(sub[i])
                 session.commit()
@@ -73,14 +78,24 @@ def check_if_notify():
                                  f"{(sub[i].crypto_name).upper()} is less than {sub[i].value}{name_to_sign(sub[i].currency) or sub[i].currency}! 📉",
                                  f"The value of {sub[i].crypto_name} has fallen below {sub[i].value}{name_to_sign(sub[i].currency) or sub[i].currency}! Current Price - {coin_data[sub[i].crypto_name][sub[i].currency]}{name_to_sign(sub[i].currency) or sub[i].currency} 📊")
 
+                notif = (Notifications(
+                    uid=sub[i].uid,
+                    crypto_name=sub[i].crypto_name,
+                    operator=sub[i].operator,
+                    value=sub[i].value,
+                    currency=sub[i].currency
+                ))
+
+                session.add(notif)
+
                 session.delete(sub[i])
                 session.commit()
 
 
 app.conf.beat_schedule = {
-    'check-alerts-every-minute': {
+    'check-alerts': {
         'task': 'src.celery_worker.check_if_notify',
-        'schedule': 60.0
+        'schedule': 300.0
     }
 }
 

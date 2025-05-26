@@ -1,5 +1,5 @@
 import os
-# import pandas as pd
+import pandas as pd
 
 from dotenv import load_dotenv
 from datetime import timedelta
@@ -8,7 +8,7 @@ from fastapi import FastAPI, Response, HTTPException, Cookie
 from pycoingecko import CoinGeckoAPI
 
 from src.database.db import session
-from src.models.models import User
+from src.models.models import User, Subscritions, Notifications
 from src.classes.request_types import UserType, LoginType, CoinsRequest, NotifyRequest
 from src.auth.auth_service import register_user, check_if_user_exists, create_token, get_user_by_id, check_auth
 from src.helpers.pwd_helper import hashPwd, comparePwds
@@ -43,19 +43,22 @@ async def send_user_email(payload: NotifyRequest, res: Response, access_token: O
         except Exception as e:
             res.status_code = 500
 
-            return HTTPException(status_code=500, detail=f"Failed to send email {e}")
+            return HTTPException(status_code=500, detail=f"Failed to send email: {e}")
     else:
-        return HTTPException(status_code=403, detail="You have to be authenticated")
+        return HTTPException(status_code=401, detail="You have to be authenticated")
 
 
 @app.get("/users")
 async def get_all_users(res: Response, access_token: Optional[str] = Cookie(None), refresh_token: Optional[str] = Cookie(None)):
-    auth_data = await check_auth(res, access_token, refresh_token)
+    try:
+        auth_data = await check_auth(res, access_token, refresh_token)
 
-    if auth_data["role"] != "admin":
-        res.status_code = 403
+        if auth_data["role"] != "admin":
+            res.status_code = 401
 
-        return HTTPException(status_code=403, detail="You are not allowed to do this")
+            return HTTPException(status_code=401, detail="You are not allowed to do this")
+    except Exception:
+        return HTTPException(status_code=401, detail="You are not authenticated!")
 
     return session.query(User).all()
 
@@ -85,9 +88,6 @@ async def register(user_data: UserType, res: Response):
 
 @app.post("/auth/login", status_code=200)
 async def login(data: LoginType, res: Response):
-    if not (await check_if_user_exists(session, data.email)):
-        raise HTTPException(status_code=400, detail="There is no user with suh email")
-
     try:
         user = session.query(User).filter(User.email == data.email).first()
 
@@ -133,9 +133,6 @@ async def login(data: LoginType, res: Response):
 
 @app.get("/users/{uid}/profile")
 async def user_profile(uid: str, res: Response, access_token: Optional[str] = Cookie(None), refresh_token: Optional[str] = Cookie(None)):
-    if not access_token and not refresh_token:
-        raise HTTPException(status_code=403, detail="You must be authenticated")
-
     try:
         await check_auth(res, access_token, refresh_token)
 
@@ -145,7 +142,7 @@ async def user_profile(uid: str, res: Response, access_token: Optional[str] = Co
 
         return user_data
     except BaseException:
-        raise HTTPException(status_code=403, detail="You must be authenticated")
+        return HTTPException(status_code=401, detail="You must be authenticated")
 
 
 """API to get cryptocurrency in currency we want"""
@@ -157,7 +154,8 @@ async def get_crypto_price(crypto_name, currency, res: Response):
         data = cg.get_price(ids=str.lower(crypto_name),
                             vs_currencies=str.lower(currency),
                             include_market_cap=True,
-                            include_24hr_change=True)
+                            include_24hr_change=True,
+                            include_price_change_percentage_24h=True)
 
         price = data[f'{crypto_name}'][currency]
 
@@ -178,18 +176,23 @@ async def get_coin_list(payload: CoinsRequest):
     try:
         data = cg.get_coins_markets(vs_currency=payload.currency or "usd", page=1)
 
-        return data
+        df = None
+
+        if payload.names:
+            df = pd.DataFrame(data)[["id", "image", "current_price"]]
+        else:
+            df = pd.DataFrame(data)[["id", "symbol", "image", "current_price", "market_cap", "market_cap_rank", "price_change_percentage_24h"]]
+
+        return df.sort_values(by="current_price", ascending=False).head(payload.limit).to_dict(orient="records")
     except Exception as e:
-        raise HTTPException(status_code=404, detail=f"Happened some error with getting coins data {e}")
+        raise HTTPException(status_code=500, detail=f"Happened some error with getting coins data: {e}")
+
 
 # Notify me when 'crypto_name' is going to be less/greater than 'value' 'currency'
 
 
 @app.post("/alert/")
 async def notify_user(payload: NotifyRequest, res: Response, access_token: Optional[str] = Cookie(None), refresh_token: Optional[str] = Cookie(None)):
-    if not access_token and not refresh_token:
-        raise HTTPException(status_code=403, detail="You must be authenticated")
-
     try:
         auth_data = await check_auth(res, access_token, refresh_token)
 
@@ -197,6 +200,34 @@ async def notify_user(payload: NotifyRequest, res: Response, access_token: Optio
 
         return await addSubscription(payload, auth_data["uid"])
     except Exception as e:
-        res.status_code = 403
+        res.status_code = 401
 
-        return HTTPException(status_code=403, detail=f"You are not authenticated {e}")
+        return HTTPException(status_code=401, detail=f"You are not authenticated: {e}")
+
+
+@app.get("/subscriptions/{uid}")
+async def get_subscriptions(uid: str, res: Response, access_token: Optional[str] = Cookie(None), refresh_token: Optional[str] = Cookie(None)):
+    try:
+        auth_data = await check_auth(res, access_token, refresh_token)
+
+        if int(auth_data["uid"]) != int(uid):
+            res.status_code = 409
+            return HTTPException(status_code=409, detail="You are not allowed to see others subscriptions")
+
+        return session.query(Subscritions).filter(Subscritions.uid == uid).all()
+    except Exception as e:
+        return HTTPException(status_code=500, detail=f"Happened smth wrong with getting subscriptions: {e}")
+
+
+@app.get("/notifications/{uid}")
+async def get_notifications(uid: str, res: Response, access_token: Optional[str] = Cookie(None), refresh_token: Optional[str] = Cookie(None)):
+    try:
+        auth_data = await check_auth(res, access_token, refresh_token)
+
+        if int(auth_data["uid"]) != int(uid):
+            res.status_code = 409
+            return HTTPException(status_code=409, detail="You are not allowed to see others notifications")
+
+        return session.query(Notifications).filter(Notifications.uid == uid).all()
+    except Exception:
+        return HTTPException(status_code=401, detail="You must be authenticated!")
