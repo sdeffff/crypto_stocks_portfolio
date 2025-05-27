@@ -23,7 +23,8 @@ app = FastAPI()
 
 cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
 
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY") 
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
 
 @app.get("/")
 def home():
@@ -198,6 +199,7 @@ async def get_stock_list():
     except Exception:
         pass
 
+
 @app.get("/stocks/{stock-name}", status_code=200)
 async def get_stock_by_name():
     try:
@@ -288,7 +290,7 @@ async def buy_premium(res: Response, req: Request, access_token: Optional[str] =
             raise HTTPException(status_code=500, detail=f"Happened some error with checkout session: {e}")
     except Exception as e:
         raise HTTPException(status_code=409, detail=f"{e}")
-    
+
 
 @app.get("/payment/success", response_class=HTMLResponse)
 async def payment_success(req: Request):
