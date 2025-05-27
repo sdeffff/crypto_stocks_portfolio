@@ -23,7 +23,8 @@ class CoinsRequest(BaseModel):
 
 
 class NotifyRequest(BaseModel):
-    crypto_name: str
+    check_type: str
+    what_to_check: str
     operator: str
     value: int
     currency: str
