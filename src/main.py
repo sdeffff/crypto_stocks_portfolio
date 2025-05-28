@@ -5,9 +5,8 @@ import httpx
 
 from dotenv import load_dotenv
 from datetime import timedelta
-from typing import Optional
-from fastapi import FastAPI, Response, Request, HTTPException, Cookie
-from fastapi.responses import RedirectResponse, HTMLResponse
+from fastapi import FastAPI, Response, Request, HTTPException
+from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from pycoingecko import CoinGeckoAPI
 
 from src.database.db import session
@@ -15,7 +14,6 @@ from src.models.models import User, Subscritions, Notifications
 from src.classes.request_types import UserType, LoginType, CoinsRequest, NotifyRequest, StockRequest
 from src.auth.auth_service import register_user, check_if_user_exists, create_token, get_user_by_id, check_auth
 from src.helpers.pwd_helper import hashPwd, comparePwds
-from src.celery_worker import send_email
 from src.helpers.subscription_helper import addSubscription
 from src.helpers.stocks_helper import get_stocks, get_stock_price
 
@@ -33,31 +31,10 @@ def home():
     return {"Data": "test"}
 
 
-@app.post("/test-email/")
-async def send_user_email(payload: NotifyRequest, res: Response, access_token: Optional[str] = Cookie(None), refresh_token: Optional[str] = Cookie(None)):
-    auth_data = await check_auth(res, access_token, refresh_token)
-
-    if auth_data:
-        print(auth_data)
-
-        try:
-            send_email.delay([auth_data["email"]], "sample email", f"Notify the user with email: {auth_data["email"]} when {payload.crypto_name} is going to be {payload.state} than {payload.value} {payload.currency}")
-
-            res.status_code = 201
-
-            return {"Message": f"Email was sent successfully to your email: {auth_data['email']}"}
-        except Exception as e:
-            res.status_code = 500
-
-            return HTTPException(status_code=500, detail=f"Failed to send email: {e}")
-    else:
-        return HTTPException(status_code=401, detail="You have to be authenticated")
-
-
 @app.get("/users")
-async def get_all_users(res: Response, access_token: Optional[str] = Cookie(None), refresh_token: Optional[str] = Cookie(None)):
+async def get_all_users(res: Response, req: Request):
     try:
-        auth_data = await check_auth(res, access_token, refresh_token)
+        auth_data = await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
         if auth_data["role"] != "admin":
             res.status_code = 401
@@ -67,6 +44,21 @@ async def get_all_users(res: Response, access_token: Optional[str] = Cookie(None
         return HTTPException(status_code=401, detail="You are not authenticated!")
 
     return session.query(User).all()
+
+
+@app.get("/users/{uid}/profile")
+async def user_profile(uid: str, res: Response, req: Request):
+    try:
+        await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
+
+        user_data = await get_user_by_id(uid)
+
+        res.status_code = 200
+
+        return user_data
+    except BaseException:
+        res.status_code = 401
+        return HTTPException(status_code=401, detail="You must be authenticated")
 
 
 @app.post("/auth/register", status_code=200)
@@ -93,7 +85,7 @@ async def register(user_data: UserType, res: Response):
 
 
 @app.post("/auth/login", status_code=200)
-async def login(data: LoginType, res: Response):
+async def login(data: LoginType):
     try:
         user = session.query(User).filter(User.email == data.email).first()
 
@@ -107,6 +99,14 @@ async def login(data: LoginType, res: Response):
             "role": user.role,
             "email": user.email
         }
+
+        res = JSONResponse(
+            status_code=200,
+            content={
+                "message": "Logged in successfully",
+                "uid": user.id
+            }
+        )
 
         access_token = await create_token(payload, timedelta(minutes=15), os.getenv("ACCESS_TOKEN_SECRET"))
         refresh_token = await create_token(payload, timedelta(days=1), os.getenv("REFRESH_TOKEN_SECRET"))
@@ -129,26 +129,9 @@ async def login(data: LoginType, res: Response):
             max_age=24 * 60 * 60
         )
 
-        return {
-            "Message": "Logged in succesfully"
-        }
-
+        return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Happened some error with login: {e}")
-
-
-@app.get("/users/{uid}/profile")
-async def user_profile(uid: str, res: Response, access_token: Optional[str] = Cookie(None), refresh_token: Optional[str] = Cookie(None)):
-    try:
-        await check_auth(res, access_token, refresh_token)
-
-        user_data = await get_user_by_id(uid)
-
-        res.status_code = 200
-
-        return user_data
-    except BaseException:
-        return HTTPException(status_code=401, detail="You must be authenticated")
 
 
 """API to get cryptocurrency in currency we want"""
@@ -195,7 +178,7 @@ async def get_coin_list(payload: CoinsRequest):
 
 
 @app.post("/stocks/stock-list", status_code=200)
-async def get_stock_list(payload: StockRequest, req: Request):
+async def get_stock_list(payload: StockRequest):
     try:
         if payload.stock_name == "":
             return get_stocks()
@@ -228,9 +211,9 @@ async def get_stock_by_name(stock_name: str):
 
 
 @app.post("/alert/")
-async def notify_user(payload: NotifyRequest, res: Response, access_token: Optional[str] = Cookie(None), refresh_token: Optional[str] = Cookie(None)):
+async def notify_user(payload: NotifyRequest, res: Response, req: Request):
     try:
-        auth_data = await check_auth(res, access_token, refresh_token)
+        auth_data = await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
         res.status_code = 201
 
@@ -242,9 +225,9 @@ async def notify_user(payload: NotifyRequest, res: Response, access_token: Optio
 
 
 @app.get("/subscriptions/{uid}")
-async def get_subscriptions(uid: str, res: Response, access_token: Optional[str] = Cookie(None), refresh_token: Optional[str] = Cookie(None)):
+async def get_subscriptions(uid: str, res: Response, req: Request):
     try:
-        auth_data = await check_auth(res, access_token, refresh_token)
+        auth_data = await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
         if int(auth_data["uid"]) != int(uid):
             res.status_code = 409
@@ -256,9 +239,9 @@ async def get_subscriptions(uid: str, res: Response, access_token: Optional[str]
 
 
 @app.get("/notifications/{uid}")
-async def get_notifications(uid: str, res: Response, access_token: Optional[str] = Cookie(None), refresh_token: Optional[str] = Cookie(None)):
+async def get_notifications(uid: str, res: Response, req: Request):
     try:
-        auth_data = await check_auth(res, access_token, refresh_token)
+        auth_data = await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
         if int(auth_data["uid"]) != int(uid):
             res.status_code = 409
@@ -270,9 +253,9 @@ async def get_notifications(uid: str, res: Response, access_token: Optional[str]
 
 
 @app.post("/buy-premium/", response_class=RedirectResponse)
-async def buy_premium(res: Response, req: Request, access_token: Optional[str] = Cookie(None), refresh_token: Optional[str] = Cookie(None)):
+async def buy_premium(res: Response, req: Request):
     try:
-        auth_data = await check_auth(res, access_token, refresh_token)
+        auth_data = await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
         user = session.query(User).filter(User.id == int(auth_data["uid"])).first()
 
