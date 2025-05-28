@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import stripe
+import httpx
 
 from dotenv import load_dotenv
 from datetime import timedelta
@@ -11,11 +12,12 @@ from pycoingecko import CoinGeckoAPI
 
 from src.database.db import session
 from src.models.models import User, Subscritions, Notifications
-from src.classes.request_types import UserType, LoginType, CoinsRequest, NotifyRequest
+from src.classes.request_types import UserType, LoginType, CoinsRequest, NotifyRequest, StockRequest
 from src.auth.auth_service import register_user, check_if_user_exists, create_token, get_user_by_id, check_auth
 from src.helpers.pwd_helper import hashPwd, comparePwds
 from src.celery_worker import send_email
 from src.helpers.subscription_helper import addSubscription
+from src.helpers.stocks_helper import get_stocks, get_stock_price
 
 load_dotenv()
 
@@ -192,20 +194,35 @@ async def get_coin_list(payload: CoinsRequest):
         raise HTTPException(status_code=500, detail=f"Happened some error with getting coins data: {e}")
 
 
-@app.get("/stocks/stock-list", status_code=200)
-async def get_stock_list():
+@app.post("/stocks/stock-list", status_code=200)
+async def get_stock_list(payload: StockRequest, req: Request):
     try:
-        pass
-    except Exception:
-        pass
+        if payload.stock_name == "":
+            return get_stocks()
+        else:
+            av_api = f"https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords={payload.stock_name}&apikey={os.getenv('ALPHA_VANTAGE_SECRET_KEY')}"
+
+            async with httpx.AsyncClient() as client:
+                response = await client.get(av_api)
+
+            if response.status_code != 200:
+                raise HTTPException(status_code=500, detail="Happened error with server")
+
+            result = [item["1. symbol"] for item in response.json()["bestMatches"]]
+
+            return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Happened some error with api: {e}")
 
 
-@app.get("/stocks/{stock-name}", status_code=200)
-async def get_stock_by_name():
+@app.get("/stocks/{stock_name}", status_code=200)
+async def get_stock_by_name(stock_name: str):
     try:
-        pass
-    except Exception:
-        pass
+        result = await get_stock_price(stock_name=stock_name)
+
+        return float(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Happened some error with api: {e}")
 
 # Notify me when stock/crpyto 'crypto_name/stock_name' is going to be less/greater than 'value' 'currency'
 
