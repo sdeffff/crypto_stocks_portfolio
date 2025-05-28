@@ -8,10 +8,11 @@ from datetime import timedelta
 from fastapi import FastAPI, Response, Request, HTTPException
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from pycoingecko import CoinGeckoAPI
+from typing import List
 
 from src.database.db import session
 from src.models.models import User, Subscritions, Notifications
-from src.classes.request_types import UserType, LoginType, CoinsRequest, NotifyRequest, StockRequest
+from src.schemas.request_types import UserType, LoginType, CoinsRequest, NotifyRequest, StockRequest
 from src.auth.auth_service import register_user, check_if_user_exists, create_token, get_user_by_id, check_auth
 from src.helpers.pwd_helper import hashPwd, comparePwds
 from src.helpers.subscription_helper import addSubscription
@@ -31,8 +32,10 @@ def home():
     return {"Data": "test"}
 
 
-@app.get("/users")
-async def get_all_users(res: Response, req: Request):
+@app.get("/users", 
+         response_model=List[UserType],
+         response_description="Endpoint to get all of the users")
+async def get_all_users(res: Response, req: Request) -> List[UserType]:
     try:
         auth_data = await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
@@ -46,8 +49,10 @@ async def get_all_users(res: Response, req: Request):
     return session.query(User).all()
 
 
-@app.get("/users/{uid}/profile")
-async def user_profile(uid: str, res: Response, req: Request):
+@app.get("/users/{uid}/profile", 
+         response_model=UserType,
+         response_description="Profile endpoint for every user")
+async def user_profile(uid: str, res: Response, req: Request) -> UserType:
     try:
         await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
@@ -137,7 +142,9 @@ async def login(data: LoginType):
 """API to get cryptocurrency in currency we want"""
 
 
-@app.get("/crypto/currency/{crypto_name}/{currency}", status_code=200)
+@app.get("/crypto/currency/{crypto_name}/{currency}", 
+         status_code=200,
+         response_description="Get the information about crypto currency by name")
 async def get_crypto_price(crypto_name, currency, res: Response):
     try:
         data = cg.get_price(ids=str.lower(crypto_name),
@@ -160,7 +167,9 @@ async def get_crypto_price(crypto_name, currency, res: Response):
         raise HTTPException(status_code=404, detail="Provided incorrect crypto currency or currency")
 
 
-@app.post("/crypto/coin-list", status_code=200)
+@app.post("/crypto/coin-list", 
+          status_code=200,
+          response_description="List of all available crypto currencies")
 async def get_coin_list(payload: CoinsRequest):
     try:
         data = cg.get_coins_markets(vs_currency=payload.currency or "usd", page=1)
@@ -177,8 +186,10 @@ async def get_coin_list(payload: CoinsRequest):
         raise HTTPException(status_code=500, detail=f"Happened some error with getting coins data: {e}")
 
 
-@app.post("/stocks/stock-list", status_code=200)
-async def get_stock_list(payload: StockRequest):
+@app.post("/stocks/stock-list", status_code=200, 
+          response_model=List[str],
+          response_description="Get list of all stocks available")
+async def get_stock_list(payload: StockRequest) -> List[str]:
     try:
         if payload.stock_name == "":
             return get_stocks()
@@ -198,8 +209,11 @@ async def get_stock_list(payload: StockRequest):
         raise HTTPException(status_code=500, detail=f"Happened some error with api: {e}")
 
 
-@app.get("/stocks/{stock_name}", status_code=200)
-async def get_stock_by_name(stock_name: str):
+@app.get("/stocks/{stock_name}", 
+         status_code=200, 
+         response_model=float,
+         response_description="Get stock price by name")
+async def get_stock_by_name(stock_name: str) -> float:
     try:
         result = await get_stock_price(stock_name=stock_name)
 
@@ -210,7 +224,9 @@ async def get_stock_by_name(stock_name: str):
 # Notify me when stock/crpyto 'crypto_name/stock_name' is going to be less/greater than 'value' 'currency'
 
 
-@app.post("/alert/")
+@app.post("/alert/", 
+          status_code=201,
+          response_description="Add a subscription to check crypto/stock price")
 async def notify_user(payload: NotifyRequest, res: Response, req: Request):
     try:
         auth_data = await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
@@ -224,8 +240,10 @@ async def notify_user(payload: NotifyRequest, res: Response, req: Request):
         return HTTPException(status_code=401, detail=f"You are not authenticated: {e}")
 
 
-@app.get("/subscriptions/{uid}")
-async def get_subscriptions(uid: str, res: Response, req: Request):
+@app.get("/subscriptions/{uid}", 
+         response_model=List[NotifyRequest],
+         response_description="Get list of  all of the users subscribtions")
+async def get_subscriptions(uid: str, res: Response, req: Request) -> List[NotifyRequest]:
     try:
         auth_data = await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
@@ -238,8 +256,10 @@ async def get_subscriptions(uid: str, res: Response, req: Request):
         return HTTPException(status_code=500, detail=f"Happened smth wrong with getting subscriptions: {e}")
 
 
-@app.get("/notifications/{uid}")
-async def get_notifications(uid: str, res: Response, req: Request):
+@app.get("/notifications/{uid}", 
+         response_model=List[NotifyRequest],
+         response_description="Get list of all notifications that were sent to the user")
+async def get_notifications(uid: str, res: Response, req: Request) -> List[NotifyRequest]:
     try:
         auth_data = await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 

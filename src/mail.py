@@ -3,6 +3,8 @@ from fastapi_mail import FastMail, ConnectionConfig, MessageSchema, MessageType
 from pathlib import Path
 from dotenv import load_dotenv
 
+"""File to configurate mail service, that will send email to users"""
+
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent

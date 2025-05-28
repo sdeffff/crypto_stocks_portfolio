@@ -7,7 +7,7 @@ from src.database.db import session
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from src.classes.request_types import UserType
+from src.schemas.request_types import UserType
 
 from src.models.models import User
 
