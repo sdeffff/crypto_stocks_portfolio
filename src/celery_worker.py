@@ -21,8 +21,8 @@ sys.path.insert(0, os.path.dirname((os.path.abspath(__file__))))
 # Create Celery app
 app = Celery(
     'crypto-tracker',
-    broker='redis://localhost:6379/0',
-    backend='redis://localhost:6379/0'
+    broker=os.getenv("REDIS_URL"),
+    backend=os.getenv("REDIS_URL")
 )
 
 # Configuration

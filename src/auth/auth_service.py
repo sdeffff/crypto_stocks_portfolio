@@ -57,7 +57,7 @@ async def get_user_by_id(uid: str):
 async def check_auth(res: Response, access_token: Optional[str], refresh_token: Optional[str]):
     try:
         if access_token:
-            return jwt.decode(access_token, os.getenv("ACCESS_TOKEN_SECRET"), algorithms=["HS256"])
+            return jwt.decode(access_token, os.getenv("ACCESS_TOKEN_SECRET"), algorithms=[os.getenv("JWT_ALGORITHM")])
     except jwt.ExpiredSignatureError:
         # Access token expired, attempt refresh token
         pass
@@ -69,7 +69,7 @@ async def check_auth(res: Response, access_token: Optional[str], refresh_token: 
         raise HTTPException(status_code=401, detail="You are not authenticated, no access and refresh token was found")
 
     try:
-        auth_data = jwt.decode(refresh_token, os.getenv("REFRESH_TOKEN_SECRET"), algorithms=["HS256"])
+        auth_data = jwt.decode(refresh_token, os.getenv("REFRESH_TOKEN_SECRET"), algorithms=[os.getenv("JWT_ALGORITHM")])
 
         payload = {
             "uid": auth_data["uid"],
