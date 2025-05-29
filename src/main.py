@@ -13,7 +13,7 @@ from typing import List
 from src.database.db import session
 from src.models.models import User, Subscritions, Notifications
 from src.schemas.request_types import UserType, LoginType, CoinsRequest, NotifyRequest, StockRequest
-from src.auth.auth_service import register_user, check_if_user_exists, create_token, get_user_by_id, check_auth
+from src.auth.auth_service import register_user, user_exists, create_token, get_user_by_id, check_auth
 from src.helpers.pwd_helper import hashPwd, comparePwds
 from src.helpers.subscription_helper import addSubscription
 from src.helpers.stocks_helper import get_stocks, get_stock_price
@@ -68,7 +68,7 @@ async def user_profile(uid: str, res: Response, req: Request) -> UserType:
 
 @app.post("/auth/register", status_code=200)
 async def register(user_data: UserType, res: Response):
-    if await check_if_user_exists(session, user_data.email):
+    if await user_exists(session, user_data.email):
         raise HTTPException(status_code=400, detail="User with such email already exists")
 
     try:

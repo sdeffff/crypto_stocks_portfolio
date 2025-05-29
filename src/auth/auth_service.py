@@ -21,7 +21,7 @@ async def create_token(payload: dict, exp: timedelta, secret: str):
     return jwt.encode(payload_copy, secret, algorithm="HS256")
 
 
-async def check_if_user_exists(session: Session, email: str) -> bool:
+async def user_exists(session: Session, email: str) -> bool:
     user = session.query(User).filter(User.email == email).first()
 
     return True if user else False
@@ -58,12 +58,11 @@ async def check_auth(res: Response, access_token: Optional[str], refresh_token: 
     try:
         if access_token:
             return jwt.decode(access_token, os.getenv("ACCESS_TOKEN_SECRET"), algorithms=[os.getenv("JWT_ALGORITHM")])
-    except jwt.ExpiredSignatureError:
-        # Access token expired, attempt refresh token
-        pass
     except jwt.InvalidTokenError:
-        # Access token invalid, try refresh
-        pass
+        res.delete_cookie("access_token")
+        res.delete_cookie("refresh_token")
+
+        raise HTTPException(status_code=409, detail="You have invalid token, try re-login")
 
     if not refresh_token:
         raise HTTPException(status_code=401, detail="You are not authenticated, no access and refresh token was found")
