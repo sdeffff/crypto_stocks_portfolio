@@ -1,9 +1,9 @@
 from fastapi import HTTPException
-from src.classes.request_types import NotifyRequest
+from src.schemas.request_types import NotifyRequest
 from src.models.models import Subscritions, User
 from src.database.db import session
 
-# basically function to add subscription to table
+"""Helper function to handle subscriptions"""
 
 
 async def addSubscription(payload: NotifyRequest, uid: int):
