@@ -18,8 +18,12 @@ class LoginType(BaseModel):
 
 class CoinsRequest(BaseModel):
     currency: Optional[str] = None
+    limit: Optional[int] = 50
+    names: Optional[bool] = False
 
 
 class NotifyRequest(BaseModel):
     crypto_name: str
+    operator: str
     value: int
+    currency: str

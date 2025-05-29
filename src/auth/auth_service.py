@@ -3,13 +3,13 @@ import os
 import dotenv
 from datetime import datetime, timedelta
 from fastapi import HTTPException, Response
-from database.db import session
+from src.database.db import session
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from classes.request_types import UserType
+from src.classes.request_types import UserType
 
-from models.models import User
+from src.models.models import User
 
 dotenv.load_dotenv()
 
@@ -59,21 +59,22 @@ async def check_auth(res: Response, access_token: Optional[str], refresh_token: 
         if access_token:
             return jwt.decode(access_token, os.getenv("ACCESS_TOKEN_SECRET"), algorithms=["HS256"])
     except jwt.ExpiredSignatureError:
-        # Access token expired, attempt refresh
+        # Access token expired, attempt refresh token
         pass
     except jwt.InvalidTokenError:
-        # Access token invalid, try refresh if available
+        # Access token invalid, try refresh
         pass
 
     if not refresh_token:
-        raise HTTPException(status_code=403, detail="Access token expired or invalid, and no refresh token provided.")
+        raise HTTPException(status_code=401, detail="You are not authenticated, no access and refresh token was found")
 
     try:
         auth_data = jwt.decode(refresh_token, os.getenv("REFRESH_TOKEN_SECRET"), algorithms=["HS256"])
 
         payload = {
             "uid": auth_data["uid"],
-            "role": auth_data["role"]
+            "role": auth_data["role"],
+            "email": auth_data["email"]
         }
 
         new_access_token = await create_token(payload, timedelta(minutes=15), os.getenv("ACCESS_TOKEN_SECRET"))
