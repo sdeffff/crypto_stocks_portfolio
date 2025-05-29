@@ -1,10 +1,12 @@
 import os
 import pandas as pd
+import stripe
 
 from dotenv import load_dotenv
 from datetime import timedelta
 from typing import Optional
-from fastapi import FastAPI, Response, HTTPException, Cookie
+from fastapi import FastAPI, Response, Request, HTTPException, Cookie
+from fastapi.responses import RedirectResponse, HTMLResponse
 from pycoingecko import CoinGeckoAPI
 
 from src.database.db import session
@@ -20,6 +22,8 @@ load_dotenv()
 app = FastAPI()
 
 cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
+
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 
 @app.get("/")
@@ -188,7 +192,22 @@ async def get_coin_list(payload: CoinsRequest):
         raise HTTPException(status_code=500, detail=f"Happened some error with getting coins data: {e}")
 
 
-# Notify me when 'crypto_name' is going to be less/greater than 'value' 'currency'
+@app.get("/stocks/stock-list", status_code=200)
+async def get_stock_list():
+    try:
+        pass
+    except Exception:
+        pass
+
+
+@app.get("/stocks/{stock-name}", status_code=200)
+async def get_stock_by_name():
+    try:
+        pass
+    except Exception:
+        pass
+
+# Notify me when stock/crpyto 'crypto_name/stock_name' is going to be less/greater than 'value' 'currency'
 
 
 @app.post("/alert/")
@@ -231,3 +250,67 @@ async def get_notifications(uid: str, res: Response, access_token: Optional[str]
         return session.query(Notifications).filter(Notifications.uid == uid).all()
     except Exception:
         return HTTPException(status_code=401, detail="You must be authenticated!")
+
+
+@app.post("/buy-premium/", response_class=RedirectResponse)
+async def buy_premium(res: Response, req: Request, access_token: Optional[str] = Cookie(None), refresh_token: Optional[str] = Cookie(None)):
+    try:
+        auth_data = await check_auth(res, access_token, refresh_token)
+
+        user = session.query(User).filter(User.id == int(auth_data["uid"])).first()
+
+        if user.premium:
+            raise HTTPException(status_code=409, detail="You are already premium user!")
+
+        base_url = str(req.base_url).rstrip("/")
+        success_url = f"{base_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
+        fail_url = f"{base_url}/payment/fail"
+
+        try:
+            checkout = stripe.checkout.Session.create(
+                line_items=[{
+                    'price_data': {
+                        'currency': 'usd',
+                        'unit_amount': 1499,
+                        'product_data': {
+                            'name': "Premium account for Crypto tracker"
+                        },
+                    },
+                    'quantity': 1,
+                }],
+                mode='payment',
+                billing_address_collection='required',
+                success_url=success_url,
+                cancel_url=fail_url,
+                customer_email=auth_data["email"]
+            )
+
+            return RedirectResponse(checkout.url, status_code=200)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Happened some error with checkout session: {e}")
+    except Exception as e:
+        raise HTTPException(status_code=409, detail=f"{e}")
+
+
+@app.get("/payment/success", response_class=HTMLResponse)
+async def payment_success(req: Request):
+    session_id = req.query_params.get("session_id")
+
+    try:
+        stripe_session = stripe.checkout.Session.retrieve(session_id)
+        users_email = stripe_session.get("customer_email")
+
+        user = session.query(User).filter(User.email == users_email).first()
+
+        if user:
+            user.premium = True
+            session.commit()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Happened error with payment: {e}")
+
+    return "<h1>Payment Successful! You're now a premium user 🎉</h1>"
+
+
+@app.get("/payment/fail", response_class=HTMLResponse)
+async def payment_fail(req: Request):
+    return "<h1>Payment was unsucessfull, try again later!</h1>"

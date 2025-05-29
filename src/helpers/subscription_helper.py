@@ -1,12 +1,18 @@
 from fastapi import HTTPException
 from src.classes.request_types import NotifyRequest
-from src.models.models import Subscritions
+from src.models.models import Subscritions, User
 from src.database.db import session
 
 # basically function to add subscription to table
 
 
 async def addSubscription(payload: NotifyRequest, uid: int):
+    user = session.query(User).filter(User.id == uid).first()
+    users_subscriptions = session.query(Subscritions).filter(Subscritions.uid == uid).all()
+
+    if (not user.premium and len(users_subscriptions) >= 4) or (user.premium and len(users_subscriptions) >= 25):
+        return HTTPException(status_code=409, detail="You reached the limit for subscriptions")
+
     try:
         data = payload.model_dump()
 

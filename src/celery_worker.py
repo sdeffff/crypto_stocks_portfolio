@@ -51,17 +51,23 @@ def check_if_notify():
     for i in range(len(sub)):
         current_user = session.query(User).filter(User.id == sub[i].uid).first()
 
-        coin_data = cg.get_price(ids=sub[i].crypto_name, vs_currencies=sub[i].currency, include_market_cap=True)
+        data = None
+
+        if sub[i].check_type == "stock":
+            data = ""
+        
+        if sub[i].check_type == "crypto":
+            data = cg.get_price(ids=sub[i].what_to_check, vs_currencies=sub[i].currency, include_market_cap=True)
 
         if sub[i].operator == "greater":
-            if sub[i].value < coin_data[sub[i].crypto_name][sub[i].currency]:
+            if sub[i].value < data[sub[i].what_to_check][sub[i].currency]:
                 send_email.delay([current_user.email],
-                                 f"{(sub[i].crypto_name).upper()} is higher than {sub[i].value}{name_to_sign(sub[i].currency) or sub[i].currency}! 📈",
-                                 f"The value of {sub[i].crypto_name} has risen above {sub[i].value}{name_to_sign(sub[i].currency) or sub[i].currency}! Current Price - {coin_data[sub[i].crypto_name][sub[i].currency]}{name_to_sign(sub[i].currency) or sub[i].currency} 📊")
+                                 f"{(sub[i].what_to_check).upper()} is higher than {sub[i].value}{name_to_sign(sub[i].currency) or sub[i].currency}! 📈",
+                                 f"The value of {sub[i].what_to_check} has risen above {sub[i].value}{name_to_sign(sub[i].currency) or sub[i].currency}! Current Price - {data[sub[i].what_to_check][sub[i].currency]}{name_to_sign(sub[i].currency) or sub[i].currency} 📊")
 
                 notif = (Notifications(
                     uid=sub[i].uid,
-                    crypto_name=sub[i].crypto_name,
+                    what_to_check=sub[i].what_to_check,
                     operator=sub[i].operator,
                     value=sub[i].value,
                     currency=sub[i].currency
@@ -73,14 +79,14 @@ def check_if_notify():
                 session.commit()
 
         if sub[i].operator == "less":
-            if sub[i].value > coin_data[sub[i].crypto_name][sub[i].currency]:
+            if sub[i].value > data[sub[i].what_to_check][sub[i].currency]:
                 send_email.delay([current_user.email],
-                                 f"{(sub[i].crypto_name).upper()} is less than {sub[i].value}{name_to_sign(sub[i].currency) or sub[i].currency}! 📉",
-                                 f"The value of {sub[i].crypto_name} has fallen below {sub[i].value}{name_to_sign(sub[i].currency) or sub[i].currency}! Current Price - {coin_data[sub[i].crypto_name][sub[i].currency]}{name_to_sign(sub[i].currency) or sub[i].currency} 📊")
+                                 f"{(sub[i].what_to_check).upper()} is less than {sub[i].value}{name_to_sign(sub[i].currency) or sub[i].currency}! 📉",
+                                 f"The value of {sub[i].what_to_check} has fallen below {sub[i].value}{name_to_sign(sub[i].currency) or sub[i].currency}! Current Price - {data[sub[i].what_to_check][sub[i].currency]}{name_to_sign(sub[i].currency) or sub[i].currency} 📊")
 
                 notif = (Notifications(
                     uid=sub[i].uid,
-                    crypto_name=sub[i].crypto_name,
+                    what_to_check=sub[i].what_to_check,
                     operator=sub[i].operator,
                     value=sub[i].value,
                     currency=sub[i].currency

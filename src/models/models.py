@@ -26,7 +26,8 @@ class Subscritions(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     uid: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    crypto_name: Mapped[str]
+    check_type: Mapped[str]
+    what_to_check: Mapped[str]
     operator: Mapped[str]
     value: Mapped[int]
     currency: Mapped[str]
@@ -37,7 +38,8 @@ class Notifications(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     uid: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    crypto_name: Mapped[str]
+    check_type: Mapped[str]
+    what_to_check: Mapped[str]
     operator: Mapped[str]
     value: Mapped[int]
     currency: Mapped[str]
