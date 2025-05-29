@@ -3,6 +3,7 @@ from typing import Optional
 
 """Models/Classes to identify types of data in endpoints"""
 
+
 class UserType(BaseModel):
     username: str
     email: str

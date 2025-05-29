@@ -32,7 +32,7 @@ def home():
     return {"Data": "test"}
 
 
-@app.get("/users", 
+@app.get("/users",
          response_model=List[UserType],
          response_description="Endpoint to get all of the users")
 async def get_all_users(res: Response, req: Request) -> List[UserType]:
@@ -49,7 +49,7 @@ async def get_all_users(res: Response, req: Request) -> List[UserType]:
     return session.query(User).all()
 
 
-@app.get("/users/{uid}/profile", 
+@app.get("/users/{uid}/profile",
          response_model=UserType,
          response_description="Profile endpoint for every user")
 async def user_profile(uid: str, res: Response, req: Request) -> UserType:
@@ -142,7 +142,7 @@ async def login(data: LoginType):
 """API to get cryptocurrency in currency we want"""
 
 
-@app.get("/crypto/currency/{crypto_name}/{currency}", 
+@app.get("/crypto/currency/{crypto_name}/{currency}",
          status_code=200,
          response_description="Get the information about crypto currency by name")
 async def get_crypto_price(crypto_name, currency, res: Response):
@@ -167,7 +167,7 @@ async def get_crypto_price(crypto_name, currency, res: Response):
         raise HTTPException(status_code=404, detail="Provided incorrect crypto currency or currency")
 
 
-@app.post("/crypto/coin-list", 
+@app.post("/crypto/coin-list",
           status_code=200,
           response_description="List of all available crypto currencies")
 async def get_coin_list(payload: CoinsRequest):
@@ -186,7 +186,7 @@ async def get_coin_list(payload: CoinsRequest):
         raise HTTPException(status_code=500, detail=f"Happened some error with getting coins data: {e}")
 
 
-@app.post("/stocks/stock-list", status_code=200, 
+@app.post("/stocks/stock-list", status_code=200,
           response_model=List[str],
           response_description="Get list of all stocks available")
 async def get_stock_list(payload: StockRequest) -> List[str]:
@@ -209,8 +209,8 @@ async def get_stock_list(payload: StockRequest) -> List[str]:
         raise HTTPException(status_code=500, detail=f"Happened some error with api: {e}")
 
 
-@app.get("/stocks/{stock_name}", 
-         status_code=200, 
+@app.get("/stocks/{stock_name}",
+         status_code=200,
          response_model=float,
          response_description="Get stock price by name")
 async def get_stock_by_name(stock_name: str) -> float:
@@ -224,7 +224,7 @@ async def get_stock_by_name(stock_name: str) -> float:
 # Notify me when stock/crpyto 'crypto_name/stock_name' is going to be less/greater than 'value' 'currency'
 
 
-@app.post("/alert/", 
+@app.post("/alert/",
           status_code=201,
           response_description="Add a subscription to check crypto/stock price")
 async def notify_user(payload: NotifyRequest, res: Response, req: Request):
@@ -240,7 +240,7 @@ async def notify_user(payload: NotifyRequest, res: Response, req: Request):
         return HTTPException(status_code=401, detail=f"You are not authenticated: {e}")
 
 
-@app.get("/subscriptions/{uid}", 
+@app.get("/subscriptions/{uid}",
          response_model=List[NotifyRequest],
          response_description="Get list of  all of the users subscribtions")
 async def get_subscriptions(uid: str, res: Response, req: Request) -> List[NotifyRequest]:
@@ -256,7 +256,7 @@ async def get_subscriptions(uid: str, res: Response, req: Request) -> List[Notif
         return HTTPException(status_code=500, detail=f"Happened smth wrong with getting subscriptions: {e}")
 
 
-@app.get("/notifications/{uid}", 
+@app.get("/notifications/{uid}",
          response_model=List[NotifyRequest],
          response_description="Get list of all notifications that were sent to the user")
 async def get_notifications(uid: str, res: Response, req: Request) -> List[NotifyRequest]:
