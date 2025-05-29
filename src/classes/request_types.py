@@ -28,3 +28,7 @@ class NotifyRequest(BaseModel):
     operator: str
     value: int
     currency: str
+
+
+class StockRequest(BaseModel):
+    stock_name: Optional[str] = ""
