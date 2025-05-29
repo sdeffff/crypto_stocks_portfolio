@@ -8,12 +8,14 @@ from fastapi import FastAPI, Response, HTTPException, Cookie
 
 from models.models import User
 
-from classes.user_type import UserType, LoginType, CoinsRequest, NotifyRequest
+from classes.request_types import UserType, LoginType, CoinsRequest, NotifyRequest
 
 from pycoingecko import CoinGeckoAPI
 
 from auth.auth_service import register_user, check_if_user_exists, create_token, get_user_by_id, check_auth
 from helpers.pwd_helper import hashPwd, comparePwds
+
+# from celery_tasks import send_email
 
 app = FastAPI()
 
@@ -160,5 +162,5 @@ async def get_coin_list(payload: CoinsRequest):
 
 
 @app.post("/alert/")
-async def subscribe_to_alter(payload: NotifyRequest):
+async def notify_user(payload: NotifyRequest):
     pass
