@@ -53,22 +53,42 @@ async def get_user_by_id(uid: str):
         "role": result[4],
     }
 
+def verify_access_token(access_token: str):
+    return jwt.decode(access_token, os.getenv("ACCESS_TOKEN_SECRET"), algorithms=[os.getenv("JWT_ALGORITHM")])
+
+def verify_refresh_token(refresh_token: str):
+    return jwt.decode(refresh_token, os.getenv("REFRESH_TOKEN_SECRET"), algorithms=[os.getenv("JWT_ALGORITHM")])
+
+def clear_tokens(res: Response):
+    res.delete_cookie("access_token")
+    res.delete_cookie("refresh_token")
+
+    raise HTTPException(status_code=409, detail="You have invalid token, try re-login")
+
+async def generate_new_token(res: Response, payload):
+    new_token = await create_token(payload, timedelta(minutes=15), os.getenv("ACCESS_TOKEN_SECRET"))
+
+    res.set_cookie(
+        key="access_token",
+        value=new_token,
+        httponly=True,
+        secure=os.getenv("PROD") == "production",
+        samesite="lax",
+        max_age=15 * 60
+    )
 
 async def check_auth(res: Response, access_token: Optional[str], refresh_token: Optional[str]):
     try:
         if access_token:
-            return jwt.decode(access_token, os.getenv("ACCESS_TOKEN_SECRET"), algorithms=[os.getenv("JWT_ALGORITHM")])
+            return verify_access_token(access_token)
     except jwt.InvalidTokenError:
-        res.delete_cookie("access_token")
-        res.delete_cookie("refresh_token")
-
-        raise HTTPException(status_code=409, detail="You have invalid token, try re-login")
+        clear_tokens(res)
 
     if not refresh_token:
         raise HTTPException(status_code=401, detail="You are not authenticated, no access and refresh token was found")
 
     try:
-        auth_data = jwt.decode(refresh_token, os.getenv("REFRESH_TOKEN_SECRET"), algorithms=[os.getenv("JWT_ALGORITHM")])
+        auth_data = verify_refresh_token(refresh_token)
 
         payload = {
             "uid": auth_data["uid"],
@@ -76,18 +96,8 @@ async def check_auth(res: Response, access_token: Optional[str], refresh_token: 
             "email": auth_data["email"]
         }
 
-        new_access_token = await create_token(payload, timedelta(minutes=15), os.getenv("ACCESS_TOKEN_SECRET"))
-
-        res.set_cookie(
-            key="access_token",
-            value=new_access_token,
-            httponly=True,
-            secure=os.getenv("PROD") == "production",
-            samesite="lax",
-            max_age=15 * 60
-        )
+        await generate_new_token(res, payload)
 
         return payload
-
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
