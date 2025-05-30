@@ -53,17 +53,21 @@ async def get_user_by_id(uid: str):
         "role": result[4],
     }
 
+
 def verify_access_token(access_token: str):
     return jwt.decode(access_token, os.getenv("ACCESS_TOKEN_SECRET"), algorithms=[os.getenv("JWT_ALGORITHM")])
 
+
 def verify_refresh_token(refresh_token: str):
     return jwt.decode(refresh_token, os.getenv("REFRESH_TOKEN_SECRET"), algorithms=[os.getenv("JWT_ALGORITHM")])
+
 
 def clear_tokens(res: Response):
     res.delete_cookie("access_token")
     res.delete_cookie("refresh_token")
 
     raise HTTPException(status_code=409, detail="You have invalid token, try re-login")
+
 
 async def generate_new_token(res: Response, payload):
     new_token = await create_token(payload, timedelta(minutes=15), os.getenv("ACCESS_TOKEN_SECRET"))
@@ -76,6 +80,7 @@ async def generate_new_token(res: Response, payload):
         samesite="lax",
         max_age=15 * 60
     )
+
 
 async def check_auth(res: Response, access_token: Optional[str], refresh_token: Optional[str]):
     try:
