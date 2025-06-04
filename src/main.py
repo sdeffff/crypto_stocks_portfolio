@@ -40,19 +40,19 @@ async def get_all_users(res: Response, req: Request) -> List[UserType]:
         auth_data = await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
         if auth_data["role"] != "admin":
-            res.status_code = 401
-
-            return HTTPException(status_code=401, detail="You are not allowed to do this")
-    except Exception:
-        return HTTPException(status_code=401, detail="You are not authenticated!")
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "You are not allowed to do this"}
+            )
+    except Exception as e:
+        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
 
     return session.query(User).all()
 
 
 @app.get("/users/{uid}/profile",
-         response_model=UserType,
          response_description="Profile endpoint for every user")
-async def user_profile(uid: str, res: Response, req: Request) -> UserType:
+async def user_profile(uid: str, res: Response, req: Request):
     try:
         await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
@@ -61,9 +61,9 @@ async def user_profile(uid: str, res: Response, req: Request) -> UserType:
         res.status_code = 200
 
         return user_data
-    except BaseException:
+    except Exception as e:
         res.status_code = 401
-        return HTTPException(status_code=401, detail="You must be authenticated")
+        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
 
 
 @app.post("/auth/register", status_code=200)
@@ -237,7 +237,7 @@ async def notify_user(payload: NotifyRequest, res: Response, req: Request):
     except Exception as e:
         res.status_code = 401
 
-        return HTTPException(status_code=401, detail=f"You are not authenticated: {e}")
+        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
 
 
 @app.get("/subscriptions/{uid}",
@@ -249,11 +249,11 @@ async def get_subscriptions(uid: str, res: Response, req: Request) -> List[Notif
 
         if int(auth_data["uid"]) != int(uid):
             res.status_code = 409
-            return HTTPException(status_code=409, detail="You are not allowed to see others subscriptions")
+            return JSONResponse(status_code=409, content={"detail": "You are not allowed to see others subscriptions"})
 
         return session.query(Subscritions).filter(Subscritions.uid == uid).all()
     except Exception as e:
-        return HTTPException(status_code=500, detail=f"Happened smth wrong with getting subscriptions: {e}")
+        return JSONResponse(status_code=401, content={"detail": e})
 
 
 @app.get("/notifications/{uid}",
@@ -265,11 +265,11 @@ async def get_notifications(uid: str, res: Response, req: Request) -> List[Notif
 
         if int(auth_data["uid"]) != int(uid):
             res.status_code = 409
-            return HTTPException(status_code=409, detail="You are not allowed to see others notifications")
+            return JSONResponse(status_code=409, content={"detail": "You are not allowed to see others notifications"})
 
         return session.query(Notifications).filter(Notifications.uid == uid).all()
-    except Exception:
-        return HTTPException(status_code=401, detail="You must be authenticated!")
+    except Exception as e:
+        return JSONResponse(status_code=401, content={"detail": e})
 
 
 @app.post("/buy-premium/", response_class=RedirectResponse)

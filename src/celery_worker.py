@@ -67,8 +67,6 @@ def check_crypto(data, current_user: User, sub: Subscritions):
                                 f"{(sub.what_to_check).upper()} is higher than {sub.value}{name_to_sign(sub.currency) or sub.currency}! 📈",
                                 f"The value of {sub.what_to_check} has risen above {sub.value}{name_to_sign(sub.currency) or sub.currency}! Current Price - {data[sub.what_to_check][sub.currency]}{name_to_sign(sub.currency) or sub.currency} 📊")
 
-            add_notif(sub, sub.check_type, sub.uid, sub.what_to_check, sub.operator, sub.value, sub.currency)
-
     if sub.operator == "less":
         if sub.value > data[sub.what_to_check][sub.currency]:
             send_email.delay([current_user.email],
