@@ -40,6 +40,7 @@ class NotifyRequest(BaseModel):
     value: int
     currency: str
 
+
 class NotifyModel(BaseModel):
     check_type: str
     what_to_check: str
@@ -47,6 +48,7 @@ class NotifyModel(BaseModel):
     value: int
     currency: str
     created_at: datetime
+
 
 class StockRequest(BaseModel):
     stock_name: Optional[str] = ""
