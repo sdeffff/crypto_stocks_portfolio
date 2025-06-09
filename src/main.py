@@ -27,6 +27,10 @@ cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 
+# TODO - resolve problems with response models
+# TODO - fix error handlings
+# TODO - remake and optimize endpoints
+
 @app.get("/")
 def home():
     return {"Data": "test"}
@@ -253,7 +257,7 @@ async def get_subscriptions(uid: str, res: Response, req: Request) -> List[Notif
 
         return session.query(Subscritions).filter(Subscritions.uid == uid).all()
     except Exception as e:
-        return JSONResponse(status_code=401, content={"detail": e})
+        return JSONResponse(status_code=401, content={"detail": e.detail})
 
 
 @app.get("/notifications/{uid}",
@@ -269,7 +273,7 @@ async def get_notifications(uid: str, res: Response, req: Request) -> List[Notif
 
         return session.query(Notifications).filter(Notifications.uid == uid).all()
     except Exception as e:
-        return JSONResponse(status_code=401, content={"detail": e})
+        return JSONResponse(status_code=401, content={"detail": e.detail})
 
 
 @app.post("/buy-premium/", response_class=RedirectResponse)

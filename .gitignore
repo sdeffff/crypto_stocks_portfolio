@@ -10,6 +10,7 @@ __pycache__
 
 *.sqlite3
 *.rdb
+
 celerybeat-schedule-wal
 celerybeat-schedule-shm
 celerybeat-schedule
