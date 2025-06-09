@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from typing import Optional
+from datetime import datetime
 
 """Models/Classes to identify types of data in endpoints"""
 
@@ -39,6 +40,13 @@ class NotifyRequest(BaseModel):
     value: int
     currency: str
 
+class NotifyModel(BaseModel):
+    check_type: str
+    what_to_check: str
+    operator: str
+    value: int
+    currency: str
+    created_at: datetime
 
 class StockRequest(BaseModel):
     stock_name: Optional[str] = ""

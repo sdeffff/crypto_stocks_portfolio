@@ -47,17 +47,16 @@ def send_email(recipients: list[str], subject: str, body: str):
 
 
 def add_notif(sub: Subscritions):
-    notif = (Notifications(
+    notif = Notifications(
         check_type=sub.check_type,
         uid=sub.uid,
         what_to_check=sub.what_to_check,
         operator=sub.operator,
         value=sub.value,
         currency=sub.currency
-    ))
+    )
 
     session.add(notif)
-
     session.delete(sub)
     session.commit()
 
@@ -79,6 +78,7 @@ def send_formatted_email(user: User, sub: Subscritions, current_value: float):
                      f"{(sub.what_to_check).upper()} is {sub.operator} than {sub.value}{name_to_sign(sub.currency) or sub.currency}{symbol}!",
                      f"The value of {sub.what_to_check} is now {current_value}{name_to_sign(sub.currency) or sub.currency}, is higher than your threshhold of {sub.value}{name_to_sign(sub.currency) or sub.currency}.`📊")
 
+    add_notif(sub)
 
 """Main method, which decides what to send, subscription type"""
 
@@ -94,8 +94,6 @@ def check_subscriptions(sub: Subscritions, user: User):
 
     if check_operators(sub.operator, sub.value, current_price):
         send_formatted_email(user, sub, current_price)
-
-    add_notif(sub)
 
 
 @app.task

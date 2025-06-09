@@ -12,7 +12,7 @@ from typing import List
 
 from src.database.db import session
 from src.models.models import User, Subscritions, Notifications
-from src.schemas.request_types import UserType, UserProfileType, LoginType, CoinsRequest, NotifyRequest, StockRequest
+from src.schemas.request_types import UserType, UserProfileType, LoginType, CoinsRequest, NotifyRequest, NotifyModel, StockRequest
 from src.auth.auth_service import register_user, user_exists, create_token, get_user_by_id, check_auth
 from src.helpers.pwd_helper import hashPwd, comparePwds
 from src.helpers.subscription_helper import addSubscription
@@ -258,9 +258,9 @@ async def get_subscriptions(uid: str, res: Response, req: Request) -> List[Notif
 
 
 @app.get("/notifications/{uid}",
-         response_model=List[NotifyRequest],
+         response_model=List[NotifyModel],
          response_description="Get list of all notifications that were sent to the user")
-async def get_notifications(uid: str, res: Response, req: Request) -> List[NotifyRequest]:
+async def get_notifications(uid: str, res: Response, req: Request) -> List[NotifyModel]:
     try:
         auth_data = await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
