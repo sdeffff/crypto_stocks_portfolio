@@ -12,7 +12,7 @@ from typing import List
 
 from src.database.db import session
 from src.models.models import User, Subscritions, Notifications
-from src.schemas.request_types import UserType, LoginType, CoinsRequest, NotifyRequest, StockRequest
+from src.schemas.request_types import UserType, UserProfileType, LoginType, CoinsRequest, NotifyRequest, StockRequest
 from src.auth.auth_service import register_user, user_exists, create_token, get_user_by_id, check_auth
 from src.helpers.pwd_helper import hashPwd, comparePwds
 from src.helpers.subscription_helper import addSubscription
@@ -28,7 +28,6 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 
 # TODO - resolve problems with response models
-# TODO - fix error handlings
 # TODO - remake and optimize endpoints
 
 @app.get("/")
@@ -55,6 +54,7 @@ async def get_all_users(res: Response, req: Request) -> List[UserType]:
 
 
 @app.get("/users/{uid}/profile",
+         response_model=UserProfileType,
          response_description="Profile endpoint for every user")
 async def user_profile(uid: str, res: Response, req: Request):
     try:

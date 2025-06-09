@@ -13,6 +13,14 @@ class UserType(BaseModel):
     pfp: Optional[str] = ""
 
 
+class UserProfileType(BaseModel):
+    id: int
+    username: str
+    email: str
+    country: str
+    role: str
+
+
 class LoginType(BaseModel):
     email: str
     password: str
