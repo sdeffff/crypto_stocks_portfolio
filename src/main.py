@@ -27,9 +27,6 @@ cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 
-# TODO - resolve problems with response models
-# TODO - remake and optimize endpoints
-
 @app.get("/")
 def home():
     return {"Data": "test"}
