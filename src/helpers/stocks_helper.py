@@ -25,4 +25,4 @@ async def get_stock_price(stock_name: str):
 
     data = response.json()
 
-    return data["Time Series (5min)"][data["Meta Data"]["3. Last Refreshed"]]["4. close"]
+    return float(data["Time Series (5min)"][data["Meta Data"]["3. Last Refreshed"]]["4. close"])

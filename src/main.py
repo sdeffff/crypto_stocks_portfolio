@@ -12,7 +12,7 @@ from typing import List
 
 from src.database.db import session
 from src.models.models import User, Subscritions, Notifications
-from src.schemas.request_types import UserType, LoginType, CoinsRequest, NotifyRequest, StockRequest
+from src.schemas.request_types import UserType, UserProfileType, LoginType, CoinsRequest, NotifyRequest, NotifyModel, StockRequest
 from src.auth.auth_service import register_user, user_exists, create_token, get_user_by_id, check_auth
 from src.helpers.pwd_helper import hashPwd, comparePwds
 from src.helpers.subscription_helper import addSubscription
@@ -51,6 +51,7 @@ async def get_all_users(res: Response, req: Request) -> List[UserType]:
 
 
 @app.get("/users/{uid}/profile",
+         response_model=UserProfileType,
          response_description="Profile endpoint for every user")
 async def user_profile(uid: str, res: Response, req: Request):
     try:
@@ -253,13 +254,13 @@ async def get_subscriptions(uid: str, res: Response, req: Request) -> List[Notif
 
         return session.query(Subscritions).filter(Subscritions.uid == uid).all()
     except Exception as e:
-        return JSONResponse(status_code=401, content={"detail": e})
+        return JSONResponse(status_code=401, content={"detail": e.detail})
 
 
 @app.get("/notifications/{uid}",
-         response_model=List[NotifyRequest],
+         response_model=List[NotifyModel],
          response_description="Get list of all notifications that were sent to the user")
-async def get_notifications(uid: str, res: Response, req: Request) -> List[NotifyRequest]:
+async def get_notifications(uid: str, res: Response, req: Request) -> List[NotifyModel]:
     try:
         auth_data = await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
@@ -269,7 +270,7 @@ async def get_notifications(uid: str, res: Response, req: Request) -> List[Notif
 
         return session.query(Notifications).filter(Notifications.uid == uid).all()
     except Exception as e:
-        return JSONResponse(status_code=401, content={"detail": e})
+        return JSONResponse(status_code=401, content={"detail": e.detail})
 
 
 @app.post("/buy-premium/", response_class=RedirectResponse)
