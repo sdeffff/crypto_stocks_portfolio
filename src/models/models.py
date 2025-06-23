@@ -49,6 +49,7 @@ class Notifications(Base):
         nullable=False
     )
 
+
 class Verifications(Base):
     __tablename__ = "email_verifications"
 

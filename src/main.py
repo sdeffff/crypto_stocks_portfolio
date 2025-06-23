@@ -24,7 +24,7 @@ app = FastAPI()
 
 cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
 
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY") 
+stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 # TODO - after user registers - send an email with 4-digit code to his email - after it,
 # Save users email and code in new table - email_verifications where is going to be stored email - 4digit code
@@ -32,6 +32,7 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 # TODO - new endpoint that is going to check if code is okay for the email, is yes - delete the row from the table and update that
 # user is now verified. Also code has to check if the day after code was created passed, so:
 # User send a POST request with his code -> if day passed -> tell him that he missed it, and allow him to send code agai
+
 
 @app.get("/")
 def home():
