@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from datetime import timedelta
 from fastapi import FastAPI, Response, Request, HTTPException, Query
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pycoingecko import CoinGeckoAPI
 from typing import List
 
@@ -24,6 +25,18 @@ from src.helpers.send_verif import send_verification_email, check_code, check_ve
 load_dotenv()
 
 app = FastAPI()
+
+allowed_origins = [
+    "http://localhost:3000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
 
