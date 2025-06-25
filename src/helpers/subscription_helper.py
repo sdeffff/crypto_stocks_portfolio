@@ -18,8 +18,6 @@ async def addSubscription(payload: NotifyRequest, uid: int):
 
         data["uid"] = uid
 
-        print(data)
-
         subscription = (Subscritions(**data))
 
         session.add(subscription)

@@ -12,11 +12,14 @@ from typing import List
 
 from src.database.db import session
 from src.models.models import User, Subscritions, Notifications
-from src.schemas.request_types import UserType, LoginType, CoinsRequest, NotifyRequest, StockRequest
+from src.schemas.request_types import UserType, LoginType, CoinsRequest, NotifyRequest, StockRequest, CodeRequest
 from src.auth.auth_service import register_user, user_exists, create_token, get_user_by_id, check_auth
+
 from src.helpers.pwd_helper import hashPwd, comparePwds
 from src.helpers.subscription_helper import addSubscription
 from src.helpers.stocks_helper import get_stocks, get_stock_price
+from src.helpers.send_verif import send_verification_email, check_code, check_verified
+
 
 load_dotenv()
 
@@ -89,15 +92,18 @@ async def register(user_data: UserType, res: Response):
 
         res.status_code = 201
 
-        return {
-            "Message": "Registered succesfully"
-        }
+        send_verification_email(user_data.email, res)
+
+        return "Verification email was sent tou your email address"
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Happened some error with registration: {e}")
 
 
 @app.post("/auth/login", status_code=200)
 async def login(data: LoginType):
+    if not check_verified(data.email):
+        raise HTTPException(status_code=403, detail=f"You didn't verify your email")
+
     try:
         user = session.query(User).filter(User.email == data.email).first()
 
@@ -145,6 +151,24 @@ async def login(data: LoginType):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Happened some error with login: {e}")
 
+
+@app.post("/email-verification")
+async def verify_email(code: CodeRequest, req: Request, res: Response):
+    try: 
+        verif_status = check_code(req, code.code)
+    except Exception as e:
+        raise HTTPException(detail=f"Happened some error with code: {e}", status_code=404)
+    
+    if verif_status:
+        res.status_code = 200
+
+        req.cookies.clear()
+
+        return "Your email was successfully confirmed, thanks!"
+    else:
+        res.status_code = 400
+
+        return "Code you provided is incorrect, try again!"
 
 """API to get cryptocurrency in currency we want"""
 

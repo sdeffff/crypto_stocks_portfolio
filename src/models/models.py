@@ -56,7 +56,7 @@ class Verifications(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str]
     code: Mapped[str]
-    created_at = Mapped[datetime] = mapped_column(
+    created_at: Mapped[datetime] = mapped_column(
         default=datetime.now(),
         nullable=False
     )
