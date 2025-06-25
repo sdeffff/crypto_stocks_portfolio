@@ -102,7 +102,7 @@ async def register(user_data: UserType, res: Response):
 @app.post("/auth/login", status_code=200)
 async def login(data: LoginType):
     if not check_verified(data.email):
-        raise HTTPException(status_code=403, detail=f"You didn't verify your email")
+        raise HTTPException(status_code=403, detail="You didn't verify your email")
 
     try:
         user = session.query(User).filter(User.email == data.email).first()
@@ -154,11 +154,11 @@ async def login(data: LoginType):
 
 @app.post("/email-verification")
 async def verify_email(code: CodeRequest, req: Request, res: Response):
-    try: 
+    try:
         verif_status = check_code(req, code.code)
     except Exception as e:
         raise HTTPException(detail=f"Happened some error with code: {e}", status_code=404)
-    
+
     if verif_status:
         res.status_code = 200
 

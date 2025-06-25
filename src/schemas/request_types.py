@@ -53,5 +53,6 @@ class NotifyModel(BaseModel):
 class StockRequest(BaseModel):
     stock_name: Optional[str] = ""
 
+
 class CodeRequest(BaseModel):
     code: str
