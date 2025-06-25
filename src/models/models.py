@@ -13,6 +13,7 @@ class User(Base):
     email: Mapped[str]
     password: Mapped[str]
     country: Mapped[str]
+    verified: Mapped[bool] = mapped_column(Boolean, default=False)
     role: Mapped[str] = mapped_column(String, default="user")
     pfp: Mapped[str]
     premium: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -43,6 +44,18 @@ class Notifications(Base):
     operator: Mapped[str]
     value: Mapped[int]
     currency: Mapped[str]
+    created_at: Mapped[datetime] = mapped_column(
+        default=datetime.now(),
+        nullable=False
+    )
+
+
+class Verifications(Base):
+    __tablename__ = "email_verifications"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    email: Mapped[str]
+    code: Mapped[str]
     created_at: Mapped[datetime] = mapped_column(
         default=datetime.now(),
         nullable=False

@@ -5,18 +5,21 @@ import httpx
 
 from dotenv import load_dotenv
 from datetime import timedelta
-from fastapi import FastAPI, Response, Request, HTTPException
+from fastapi import FastAPI, Response, Request, HTTPException, Query
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from pycoingecko import CoinGeckoAPI
 from typing import List
 
 from src.database.db import session
 from src.models.models import User, Subscritions, Notifications
-from src.schemas.request_types import UserType, UserProfileType, LoginType, CoinsRequest, NotifyRequest, NotifyModel, StockRequest
+from src.schemas.request_types import UserType, LoginType, CoinsRequest, NotifyRequest, StockRequest, CodeRequest
 from src.auth.auth_service import register_user, user_exists, create_token, get_user_by_id, check_auth
+
 from src.helpers.pwd_helper import hashPwd, comparePwds
 from src.helpers.subscription_helper import addSubscription
 from src.helpers.stocks_helper import get_stocks, get_stock_price
+from src.helpers.send_verif import send_verification_email, check_code, check_verified
+
 
 load_dotenv()
 
@@ -25,6 +28,13 @@ app = FastAPI()
 cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
+# TODO - after user registers - send an email with 4-digit code to his email - after it,
+# Save users email and code in new table - email_verifications where is going to be stored email - 4digit code
+# User is going to write some code, POST request to new endpoint:
+# TODO - new endpoint that is going to check if code is okay for the email, is yes - delete the row from the table and update that
+# user is now verified. Also code has to check if the day after code was created passed, so:
+# User send a POST request with his code -> if day passed -> tell him that he missed it, and allow him to send code agai
 
 
 @app.get("/")
@@ -51,7 +61,6 @@ async def get_all_users(res: Response, req: Request) -> List[UserType]:
 
 
 @app.get("/users/{uid}/profile",
-         response_model=UserProfileType,
          response_description="Profile endpoint for every user")
 async def user_profile(uid: str, res: Response, req: Request):
     try:
@@ -83,15 +92,18 @@ async def register(user_data: UserType, res: Response):
 
         res.status_code = 201
 
-        return {
-            "Message": "Registered succesfully"
-        }
+        send_verification_email(user_data.email, res)
+
+        return "Verification email was sent tou your email address"
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Happened some error with registration: {e}")
 
 
 @app.post("/auth/login", status_code=200)
 async def login(data: LoginType):
+    if not check_verified(data.email):
+        raise HTTPException(status_code=403, detail="You didn't verify your email")
+
     try:
         user = session.query(User).filter(User.email == data.email).first()
 
@@ -140,6 +152,24 @@ async def login(data: LoginType):
         raise HTTPException(status_code=500, detail=f"Happened some error with login: {e}")
 
 
+@app.post("/email-verification")
+async def verify_email(code: CodeRequest, req: Request, res: Response):
+    try:
+        verif_status = check_code(req, code.code)
+    except Exception as e:
+        raise HTTPException(detail=f"Happened some error with code: {e}", status_code=404)
+
+    if verif_status:
+        res.status_code = 200
+
+        req.cookies.clear()
+
+        return "Your email was successfully confirmed, thanks!"
+    else:
+        res.status_code = 400
+
+        return "Code you provided is incorrect, try again!"
+
 """API to get cryptocurrency in currency we want"""
 
 
@@ -171,9 +201,9 @@ async def get_crypto_price(crypto_name, currency, res: Response):
 @app.post("/crypto/coin-list",
           status_code=200,
           response_description="List of all available crypto currencies")
-async def get_coin_list(payload: CoinsRequest):
+async def get_coin_list(payload: CoinsRequest, page: int = Query(1, ge=1)):
     try:
-        data = cg.get_coins_markets(vs_currency=payload.currency or "usd", page=1)
+        data = cg.get_coins_markets(vs_currency=payload.currency or "usd", page=page)
 
         df = None
 
@@ -254,13 +284,13 @@ async def get_subscriptions(uid: str, res: Response, req: Request) -> List[Notif
 
         return session.query(Subscritions).filter(Subscritions.uid == uid).all()
     except Exception as e:
-        return JSONResponse(status_code=401, content={"detail": e.detail})
+        return JSONResponse(status_code=401, content={"detail": e})
 
 
 @app.get("/notifications/{uid}",
-         response_model=List[NotifyModel],
+         response_model=List[NotifyRequest],
          response_description="Get list of all notifications that were sent to the user")
-async def get_notifications(uid: str, res: Response, req: Request) -> List[NotifyModel]:
+async def get_notifications(uid: str, res: Response, req: Request) -> List[NotifyRequest]:
     try:
         auth_data = await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
@@ -270,7 +300,7 @@ async def get_notifications(uid: str, res: Response, req: Request) -> List[Notif
 
         return session.query(Notifications).filter(Notifications.uid == uid).all()
     except Exception as e:
-        return JSONResponse(status_code=401, content={"detail": e.detail})
+        return JSONResponse(status_code=401, content={"detail": e})
 
 
 @app.post("/buy-premium/", response_class=RedirectResponse)
