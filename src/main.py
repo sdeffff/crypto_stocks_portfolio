@@ -219,8 +219,8 @@ async def get_crypto_price(
           status_code=200,
           response_description="List of all available crypto currencies")
 async def get_coin_list(
-    payload: CoinsRequest, page: int = Query(1, ge=1), 
-    crypto: List[str] = Query(default=[]), 
+    payload: CoinsRequest, page: int = Query(1, ge=1),
+    crypto: List[str] = Query(default=[]),
     sort_by: Optional[str] = Query("", min_length=0)
 ):
     try:
