@@ -186,13 +186,17 @@ async def verify_email(code: CodeRequest, req: Request, res: Response):
 """API to get cryptocurrency in currency we want"""
 
 
-@app.get("/crypto/currency/{crypto_name}/{currency}",
+@app.get("/crypto/currency",
          status_code=200,
          response_description="Get the information about crypto currency by name")
-async def get_crypto_price(crypto_name, currency, res: Response):
+async def get_crypto_price(
+    res: Response,
+    crypto_name: Optional[str] = Query(default=""),
+    currency: Optional[str] = Query(default=None),
+):
     try:
-        data = cg.get_price(ids=str.lower(crypto_name),
-                            vs_currencies=str.lower(currency),
+        data = cg.get_price(ids=crypto_name,
+                            vs_currencies=(currency or "usd").lower(),
                             include_market_cap=True,
                             include_24hr_change=True,
                             include_price_change_percentage_24h=True)
@@ -214,7 +218,11 @@ async def get_crypto_price(crypto_name, currency, res: Response):
 @app.post("/crypto/coin-list",
           status_code=200,
           response_description="List of all available crypto currencies")
-async def get_coin_list(payload: CoinsRequest, page: int = Query(1, ge=1), crypto: Optional[str] = Query("", ge=""), sort_by: Optional[str] = Query("", ge="")):
+async def get_coin_list(
+    payload: CoinsRequest, page: int = Query(1, ge=1), 
+    crypto: List[str] = Query(default=[]), 
+    sort_by: Optional[str] = Query("", min_length=0)
+):
     try:
         data = cg.get_coins_markets(vs_currency=payload.currency or "usd", page=page)
 
@@ -225,10 +233,16 @@ async def get_coin_list(payload: CoinsRequest, page: int = Query(1, ge=1), crypt
         else:
             df = pd.DataFrame(data)[["id", "symbol", "image", "current_price", "market_cap", "market_cap_rank", "price_change_percentage_24h"]]
 
-        if crypto != "":
-            return df[df.id == crypto.lower()].sort_values(by=(sort_by if sort_by != "" else "current_price"), ascending=False).head(payload.limit).to_dict(orient="records")
+        if crypto:
+            filtered_df = df[df.id.isin([c.lower() for c in crypto])]
         else:
-            return df.sort_values(by=(sort_by if sort_by != "" else "current_price"), ascending=False).head(payload.limit).to_dict(orient="records")
+            filtered_df = df
+
+        sort_column = sort_by if sort_by else "current_price"
+        sorted_df = filtered_df.sort_values(by=sort_column, ascending=False)
+
+        return sorted_df.head(payload.limit).to_dict(orient="records")
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Happened some error with getting coins data: {e}")
 
