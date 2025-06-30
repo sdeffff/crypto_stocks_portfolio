@@ -9,7 +9,7 @@ from fastapi import FastAPI, Response, Request, HTTPException, Query
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pycoingecko import CoinGeckoAPI
-from typing import List
+from typing import List, Optional
 
 from src.database.db import session
 from src.models.models import User, Subscritions, Notifications
@@ -92,7 +92,7 @@ async def user_profile(uid: str, res: Response, req: Request):
 @app.post("/auth/register", status_code=200)
 async def register(user_data: UserType, res: Response):
     if await user_exists(session, user_data.email):
-        raise HTTPException(status_code=400, detail="User with such email already exists")
+        raise HTTPException(status_code=404, detail="User with such email already exists")
 
     try:
         hashedPwd = (await hashPwd(user_data.password)).decode('utf-8')
@@ -214,7 +214,7 @@ async def get_crypto_price(crypto_name, currency, res: Response):
 @app.post("/crypto/coin-list",
           status_code=200,
           response_description="List of all available crypto currencies")
-async def get_coin_list(payload: CoinsRequest, page: int = Query(1, ge=1)):
+async def get_coin_list(payload: CoinsRequest, page: int = Query(1, ge=1), crypto: Optional[str] = Query("", ge=""), sort_by: Optional[str] = Query("", ge="")):
     try:
         data = cg.get_coins_markets(vs_currency=payload.currency or "usd", page=page)
 
@@ -225,7 +225,10 @@ async def get_coin_list(payload: CoinsRequest, page: int = Query(1, ge=1)):
         else:
             df = pd.DataFrame(data)[["id", "symbol", "image", "current_price", "market_cap", "market_cap_rank", "price_change_percentage_24h"]]
 
-        return df.sort_values(by="current_price", ascending=False).head(payload.limit).to_dict(orient="records")
+        if crypto != "":
+            return df[df.id == crypto.lower()].sort_values(by=(sort_by if sort_by != "" else "current_price"), ascending=False).head(payload.limit).to_dict(orient="records")
+        else:
+            return df.sort_values(by=(sort_by if sort_by != "" else "current_price"), ascending=False).head(payload.limit).to_dict(orient="records")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Happened some error with getting coins data: {e}")
 
