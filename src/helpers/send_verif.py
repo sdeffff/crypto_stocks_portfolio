@@ -1,5 +1,4 @@
 import random
-import os
 
 from fastapi.responses import Response
 from fastapi.requests import Request
@@ -25,7 +24,7 @@ def send_verification_email(email: str, res: Response):
         key="user_email",
         value=email,
         httponly=True,
-        secure=os.getenv("PROD") == "production",
+        secure=False,
         samesite="lax",
         max_age=5 * 60
     )

@@ -7,8 +7,9 @@ from dotenv import load_dotenv
 from datetime import timedelta
 from fastapi import FastAPI, Response, Request, HTTPException, Query
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pycoingecko import CoinGeckoAPI
-from typing import List
+from typing import List, Optional
 
 from src.database.db import session
 from src.models.models import User, Subscritions, Notifications
@@ -24,6 +25,18 @@ from src.helpers.send_verif import send_verification_email, check_code, check_ve
 load_dotenv()
 
 app = FastAPI()
+
+allowed_origins = [
+    "http://localhost:3000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
 
@@ -79,7 +92,7 @@ async def user_profile(uid: str, res: Response, req: Request):
 @app.post("/auth/register", status_code=200)
 async def register(user_data: UserType, res: Response):
     if await user_exists(session, user_data.email):
-        raise HTTPException(status_code=400, detail="User with such email already exists")
+        raise HTTPException(status_code=404, detail="User with such email already exists")
 
     try:
         hashedPwd = (await hashPwd(user_data.password)).decode('utf-8')
@@ -173,13 +186,17 @@ async def verify_email(code: CodeRequest, req: Request, res: Response):
 """API to get cryptocurrency in currency we want"""
 
 
-@app.get("/crypto/currency/{crypto_name}/{currency}",
+@app.get("/crypto/currency",
          status_code=200,
          response_description="Get the information about crypto currency by name")
-async def get_crypto_price(crypto_name, currency, res: Response):
+async def get_crypto_price(
+    res: Response,
+    crypto_name: Optional[str] = Query(default=""),
+    currency: Optional[str] = Query(default=None),
+):
     try:
-        data = cg.get_price(ids=str.lower(crypto_name),
-                            vs_currencies=str.lower(currency),
+        data = cg.get_price(ids=crypto_name,
+                            vs_currencies=(currency or "usd").lower(),
                             include_market_cap=True,
                             include_24hr_change=True,
                             include_price_change_percentage_24h=True)
@@ -201,7 +218,11 @@ async def get_crypto_price(crypto_name, currency, res: Response):
 @app.post("/crypto/coin-list",
           status_code=200,
           response_description="List of all available crypto currencies")
-async def get_coin_list(payload: CoinsRequest, page: int = Query(1, ge=1)):
+async def get_coin_list(
+    payload: CoinsRequest, page: int = Query(1, ge=1),
+    crypto: List[str] = Query(default=[]),
+    sort_by: Optional[str] = Query("", min_length=0)
+):
     try:
         data = cg.get_coins_markets(vs_currency=payload.currency or "usd", page=page)
 
@@ -212,7 +233,16 @@ async def get_coin_list(payload: CoinsRequest, page: int = Query(1, ge=1)):
         else:
             df = pd.DataFrame(data)[["id", "symbol", "image", "current_price", "market_cap", "market_cap_rank", "price_change_percentage_24h"]]
 
-        return df.sort_values(by="current_price", ascending=False).head(payload.limit).to_dict(orient="records")
+        if crypto:
+            filtered_df = df[df.id.isin([c.lower() for c in crypto])]
+        else:
+            filtered_df = df
+
+        sort_column = sort_by if sort_by else "current_price"
+        sorted_df = filtered_df.sort_values(by=sort_column, ascending=False)
+
+        return sorted_df.head(payload.limit).to_dict(orient="records")
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Happened some error with getting coins data: {e}")
 
