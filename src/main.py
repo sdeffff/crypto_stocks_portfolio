@@ -42,18 +42,6 @@ cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
-# TODO - after user registers - send an email with 4-digit code to his email - after it,
-# Save users email and code in new table - email_verifications where is going to be stored email - 4digit code
-# User is going to write some code, POST request to new endpoint:
-# TODO - new endpoint that is going to check if code is okay for the email, is yes - delete the row from the table and update that
-# user is now verified. Also code has to check if the day after code was created passed, so:
-# User send a POST request with his code -> if day passed -> tell him that he missed it, and allow him to send code agai
-
-
-@app.get("/")
-def home():
-    return {"Data": "test"}
-
 
 @app.get("/users",
          response_model=List[UserType],
@@ -183,37 +171,6 @@ async def verify_email(code: CodeRequest, req: Request, res: Response):
 
         return "Code you provided is incorrect, try again!"
 
-"""API to get cryptocurrency in currency we want"""
-
-
-@app.get("/crypto/currency",
-         status_code=200,
-         response_description="Get the information about crypto currency by name")
-async def get_crypto_price(
-    res: Response,
-    crypto_name: Optional[str] = Query(default=""),
-    currency: Optional[str] = Query(default=None),
-):
-    try:
-        data = cg.get_price(ids=crypto_name,
-                            vs_currencies=(currency or "usd").lower(),
-                            include_market_cap=True,
-                            include_24hr_change=True,
-                            include_price_change_percentage_24h=True)
-
-        price = data[f'{crypto_name}'][currency]
-
-        formatted = f"{price:,}".replace(",", " ")
-
-        res.status_code = 200
-
-        return {
-            "data": data,
-            "price": formatted
-        }
-    except BaseException:
-        raise HTTPException(status_code=404, detail="Provided incorrect crypto currency or currency")
-
 
 @app.post("/crypto/coin-list",
           status_code=200,
@@ -221,10 +178,11 @@ async def get_crypto_price(
 async def get_coin_list(
     payload: CoinsRequest, page: int = Query(1, ge=1),
     crypto: List[str] = Query(default=[]),
-    sort_by: Optional[str] = Query("", min_length=0)
+    sort_by: Optional[str] = Query("", min_length=0),
+    sort_order: Optional[str] = Query("", min_length=0)
 ):
     try:
-        data = cg.get_coins_markets(vs_currency=payload.currency or "usd", page=page)
+        data = cg.get_coins_markets(vs_currency=payload.currency or "usd", page=(page if page else 1))
 
         df = None
 
@@ -239,7 +197,7 @@ async def get_coin_list(
             filtered_df = df
 
         sort_column = sort_by if sort_by else "current_price"
-        sorted_df = filtered_df.sort_values(by=sort_column, ascending=False)
+        sorted_df = filtered_df.sort_values(by=sort_column, ascending=(True if sort_order == "asc" else False))
 
         return sorted_df.head(payload.limit).to_dict(orient="records")
 
