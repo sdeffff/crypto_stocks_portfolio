@@ -1,7 +1,6 @@
 import os
 import pandas as pd
 import stripe
-import httpx
 
 from dotenv import load_dotenv
 from datetime import timedelta
@@ -13,12 +12,12 @@ from typing import List, Optional
 
 from src.database.db import session
 from src.models.models import User, Subscritions, Notifications
-from src.schemas.request_types import UserType, LoginType, CoinsRequest, NotifyRequest, StockRequest, CodeRequest
+from src.schemas.request_types import UserType, LoginType, CoinsRequest, NotifyRequest, CodeRequest
 from src.auth.auth_service import register_user, user_exists, create_token, get_user_by_id, check_auth
 
 from src.helpers.pwd_helper import hashPwd, comparePwds
 from src.helpers.subscription_helper import addSubscription
-from src.helpers.stocks_helper import get_stocks, get_stock_price
+from src.helpers.stocks_helper import get_stock_price
 from src.helpers.send_verif import send_verification_email, check_code, check_verified
 
 
@@ -208,40 +207,14 @@ async def get_coin_list(
         raise HTTPException(status_code=500, detail=f"Happened some error with getting coins data: {e}")
 
 
-@app.post("/stocks/stock-list", status_code=200,
-          response_model=List[str],
-          response_description="Get list of all stocks available")
-async def get_stock_list(payload: StockRequest) -> List[str]:
+@app.get("/stocks/stock-list/", status_code=200,
+         response_model=List[dict],
+         response_description="Get list of all stocks available")
+async def get_stock_list(stock_name: Optional[str] = Query("", min_length=0)) -> List[str]:
     try:
-        if payload.stock_name == "":
-            return get_stocks()
-        else:
-            av_api = f"https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords={payload.stock_name}&apikey={os.getenv('ALPHA_VANTAGE_SECRET_KEY')}"
-
-            async with httpx.AsyncClient() as client:
-                response = await client.get(av_api)
-
-            if response.status_code != 200:
-                raise HTTPException(status_code=500, detail="Happened error with server")
-
-            result = [item["1. symbol"] for item in response.json()["bestMatches"]]
-
-            return result
+        return await get_stock_price(stock_name=stock_name)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Happened some error with api: {e}")
-
-
-@app.get("/stocks/{stock_name}",
-         status_code=200,
-         response_model=float,
-         response_description="Get stock price by name")
-async def get_stock_by_name(stock_name: str) -> float:
-    try:
-        result = await get_stock_price(stock_name=stock_name)
-
-        return float(result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Happened some error with api: {e}")
+        raise HTTPException(status_code=500, detail=f"{e}")
 
 # Notify me when stock/crpyto 'crypto_name/stock_name' is going to be less/greater than 'value' 'currency'
 

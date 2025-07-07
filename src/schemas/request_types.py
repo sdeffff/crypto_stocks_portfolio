@@ -50,9 +50,5 @@ class NotifyModel(BaseModel):
     created_at: datetime
 
 
-class StockRequest(BaseModel):
-    stock_name: Optional[str] = ""
-
-
 class CodeRequest(BaseModel):
     code: str
