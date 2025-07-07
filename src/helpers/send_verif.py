@@ -52,8 +52,12 @@ def check_code(req: Request, code: str):
     if not user_email:
         return False
 
-    verif = session.query(Verifications).filter(Verifications.email == user_email).first()
-    user = session.query(User).filter(User.email == verif.email).first()
+    verif, user = (
+        session.query(Verifications, User)
+        .join(User, User.email == Verifications.email)
+        .filter(Verifications.email == user_email)
+        .first()
+    )
 
     if verif and code == verif.code and user:
         user.verified = True

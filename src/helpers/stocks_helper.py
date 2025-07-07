@@ -2,6 +2,8 @@ import os
 import httpx
 from fastapi import HTTPException
 
+import yfinance as yf
+
 
 def get_stocks():
     return [
