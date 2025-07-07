@@ -22,6 +22,9 @@ from src.helpers.stocks_helper import get_stocks, get_stock_price
 from src.helpers.send_verif import send_verification_email, check_code, check_verified
 
 
+# TODO - imprve sqlalchemy queries, if they a potential issues
+# TODO - change stocks functionality - from alpha vantage to yahoo finance
+
 load_dotenv()
 
 app = FastAPI()
