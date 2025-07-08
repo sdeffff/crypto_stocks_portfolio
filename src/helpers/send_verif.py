@@ -11,9 +11,25 @@ from src.database.db import session
 def send_verification_email(email: str, res: Response):
     code = random.randint(1000, 9999)
 
+    verification_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px;">
+                <div style="max-width: 500px; margin: auto; background-color: #ffffff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                <h2 style="color: #2ecc71;">Crypto&Stocks Tracker</h2>
+                <p>Hello,</p>
+                <p>Thank you for registering on our platform.</p>
+                <p>Please confirm your email by entering the following verification code:</p>
+                <p style="font-size: 24px; font-weight: bold; color: #3498db; letter-spacing: 4px; text-align: center;">{code}</p>
+                <p>If you didn't request this, you can safely ignore this email.</p>
+                <p style="margin-top: 20px;">— The Crypto&Stocks Tracker Team</p>
+                </div>
+            </body>
+        </html>
+    """
+
     send_email.delay([email],
                      "Email verification on Crypto&Stocks Tracker",
-                     f"Hello, you have registered to our platform confirm your email by entering the following code: {code}")
+                     verification_content)
 
     verification = (Verifications(email=email, code=code))
 
@@ -36,8 +52,12 @@ def check_code(req: Request, code: str):
     if not user_email:
         return False
 
-    verif = session.query(Verifications).filter(Verifications.email == user_email).first()
-    user = session.query(User).filter(User.email == verif.email).first()
+    verif, user = (
+        session.query(Verifications, User)
+        .join(User, User.email == Verifications.email)
+        .filter(Verifications.email == user_email)
+        .first()
+    )
 
     if verif and code == verif.code and user:
         user.verified = True

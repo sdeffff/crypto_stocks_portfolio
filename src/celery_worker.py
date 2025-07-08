@@ -74,9 +74,24 @@ def check_operators(operator: str, threshold: float, current: float) -> bool:
 def send_formatted_email(user: User, sub: Subscritions, current_value: float):
     symbol = "📈" if sub.operator == "greater" else "📉"
 
+    notification_content = f"""
+        <html>
+            <body style="font-family: Arial, sans-serif; background-color: #f9f9f9; padding: 20px;">
+                <div style="max-width: 500px; margin: auto; background-color: #ffffff; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
+                <h2 style="color: #2ecc71;">Crypto&Stocks Tracker</h2>
+                <p style="font-size: 16px;">We would like to inform you that the value of {sub.what_to_check} is now:</p>
+                <p style="font-size: 26px; font-weight: bold; color: #2ecc71; letter-spacing: 1px; text-align: center;">{current_value}{name_to_sign(sub.currency) or sub.currency}!</p>
+                <p>Which is heigher than thershold that you subscribed for: {sub.value}{name_to_sign(sub.currency) or sub.currency}📊</p>
+                <a style="font-size: 14px; font-weight: 700;" href="future-website.com/{sub.what_to_check}">Check it out!</a>
+                <p style="margin-top: 20px;">— The Crypto&Stocks Tracker Team</p>
+                </div>
+            </body>
+        </html>
+    """
+
     send_email.delay([user.email],
                      f"{(sub.what_to_check).upper()} is {sub.operator} than {sub.value}{name_to_sign(sub.currency) or sub.currency}{symbol}!",
-                     f"The value of {sub.what_to_check} is now {current_value}{name_to_sign(sub.currency) or sub.currency}, is higher than your threshhold of {sub.value}{name_to_sign(sub.currency) or sub.currency}.`📊")
+                     notification_content)
 
     add_notif(sub)
 

@@ -1,7 +1,6 @@
 import os
 import pandas as pd
 import stripe
-import httpx
 
 from dotenv import load_dotenv
 from datetime import timedelta
@@ -13,14 +12,14 @@ from typing import List, Optional
 
 from src.database.db import session
 from src.models.models import User, Subscritions, Notifications
-from src.schemas.request_types import UserType, LoginType, CoinsRequest, NotifyRequest, StockRequest, CodeRequest
+from src.schemas.request_types import UserType, LoginType, CoinsRequest, NotifyRequest, CodeRequest
 from src.auth.auth_service import register_user, user_exists, create_token, get_user_by_id, check_auth
 
 from src.helpers.pwd_helper import hashPwd, comparePwds
 from src.helpers.subscription_helper import addSubscription
-from src.helpers.stocks_helper import get_stocks, get_stock_price
+from src.helpers.stocks_helper import get_stock_price
 from src.helpers.send_verif import send_verification_email, check_code, check_verified
-
+from src.helpers.statistics_helper import get_coin_stats, get_stock_stats
 
 load_dotenv()
 
@@ -41,18 +40,6 @@ app.add_middleware(
 cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-
-# TODO - after user registers - send an email with 4-digit code to his email - after it,
-# Save users email and code in new table - email_verifications where is going to be stored email - 4digit code
-# User is going to write some code, POST request to new endpoint:
-# TODO - new endpoint that is going to check if code is okay for the email, is yes - delete the row from the table and update that
-# user is now verified. Also code has to check if the day after code was created passed, so:
-# User send a POST request with his code -> if day passed -> tell him that he missed it, and allow him to send code agai
-
-
-@app.get("/")
-def home():
-    return {"Data": "test"}
 
 
 @app.get("/users",
@@ -183,37 +170,6 @@ async def verify_email(code: CodeRequest, req: Request, res: Response):
 
         return "Code you provided is incorrect, try again!"
 
-"""API to get cryptocurrency in currency we want"""
-
-
-@app.get("/crypto/currency",
-         status_code=200,
-         response_description="Get the information about crypto currency by name")
-async def get_crypto_price(
-    res: Response,
-    crypto_name: Optional[str] = Query(default=""),
-    currency: Optional[str] = Query(default=None),
-):
-    try:
-        data = cg.get_price(ids=crypto_name,
-                            vs_currencies=(currency or "usd").lower(),
-                            include_market_cap=True,
-                            include_24hr_change=True,
-                            include_price_change_percentage_24h=True)
-
-        price = data[f'{crypto_name}'][currency]
-
-        formatted = f"{price:,}".replace(",", " ")
-
-        res.status_code = 200
-
-        return {
-            "data": data,
-            "price": formatted
-        }
-    except BaseException:
-        raise HTTPException(status_code=404, detail="Provided incorrect crypto currency or currency")
-
 
 @app.post("/crypto/coin-list",
           status_code=200,
@@ -221,10 +177,11 @@ async def get_crypto_price(
 async def get_coin_list(
     payload: CoinsRequest, page: int = Query(1, ge=1),
     crypto: List[str] = Query(default=[]),
-    sort_by: Optional[str] = Query("", min_length=0)
+    sort_by: Optional[str] = Query("", min_length=0),
+    sort_order: Optional[str] = Query("", min_length=0)
 ):
     try:
-        data = cg.get_coins_markets(vs_currency=payload.currency or "usd", page=page)
+        data = cg.get_coins_markets(vs_currency=payload.currency or "usd", page=(page if page else 1))
 
         df = None
 
@@ -239,48 +196,57 @@ async def get_coin_list(
             filtered_df = df
 
         sort_column = sort_by if sort_by else "current_price"
-        sorted_df = filtered_df.sort_values(by=sort_column, ascending=False)
+        sorted_df = filtered_df.sort_values(by=sort_column, ascending=(True if sort_order == "asc" else False))
 
         return sorted_df.head(payload.limit).to_dict(orient="records")
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Happened some error with getting coins data: {e}")
 
-
-@app.post("/stocks/stock-list", status_code=200,
-          response_model=List[str],
-          response_description="Get list of all stocks available")
-async def get_stock_list(payload: StockRequest) -> List[str]:
-    try:
-        if payload.stock_name == "":
-            return get_stocks()
-        else:
-            av_api = f"https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords={payload.stock_name}&apikey={os.getenv('ALPHA_VANTAGE_SECRET_KEY')}"
-
-            async with httpx.AsyncClient() as client:
-                response = await client.get(av_api)
-
-            if response.status_code != 200:
-                raise HTTPException(status_code=500, detail="Happened error with server")
-
-            result = [item["1. symbol"] for item in response.json()["bestMatches"]]
-
-            return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Happened some error with api: {e}")
+# Get statistics for coins
 
 
-@app.get("/stocks/{stock_name}",
+@app.get("/crypto/statistics/",
          status_code=200,
-         response_model=float,
-         response_description="Get stock price by name")
-async def get_stock_by_name(stock_name: str) -> float:
+         response_description="Get statistics for crypto coin")
+async def get_coin_statistics(
+    coin_name: str = Query("", min_length=0),
+):
     try:
-        result = await get_stock_price(stock_name=stock_name)
+        data = await get_coin_stats(coin_name)
 
-        return float(result)
+        res = pd.DataFrame(data)[["name", "image", "current_price", "high_24h", "low_24h", "sparkline_in_7d", "price_change_percentage_7d_in_currency"]].rename(columns={"high_24h": "high", "low_24h": "low"})
+
+        return res.to_dict(orient="records")[0]
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Happened some error with api: {e}")
+        raise HTTPException(status_code=500, detail=f"Error with getting statistics for {coin_name}: {e}")
+
+
+@app.get("/stocks/stock-list/", status_code=200,
+         response_model=List[dict],
+         response_description="Get list of all stocks available")
+async def get_stock_list(
+    stock_name: Optional[str] = Query("", min_length=0)
+) -> List[str]:
+    try:
+        return await get_stock_price(stock_name=stock_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{e}")
+
+# Get statistics for stocks
+
+
+@app.get("/stocks/statistics/", status_code=200,
+         response_description="Get statistics for the stock")
+async def get_stock_statistics(
+    stock_name: str = Query("", min_length=0),
+):
+    try:
+        data = await get_stock_stats(stock_name)
+
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error with getting statistics for {stock_name}: {e}")
 
 # Notify me when stock/crpyto 'crypto_name/stock_name' is going to be less/greater than 'value' 'currency'
 
