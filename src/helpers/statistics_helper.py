@@ -23,8 +23,6 @@ def get_stock_price_change(curr_price, oldest_price):
 async def get_stock_stats(stock_name: str):
     start_date = (datetime.today() - timedelta(hours=168)).strftime("%Y-%m-%d")
 
-    print(start_date)
-
     df = yf.download(
         stock_name.upper(),
         start=start_date,
