@@ -19,6 +19,7 @@ from src.helpers.pwd_helper import hashPwd, comparePwds
 from src.helpers.subscription_helper import addSubscription
 from src.helpers.stocks_helper import get_stock_price
 from src.helpers.send_verif import send_verification_email, check_code, check_verified
+from src.helpers.statistics_helper import get_coin_stats, get_stock_stats
 
 load_dotenv()
 
@@ -202,15 +203,50 @@ async def get_coin_list(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Happened some error with getting coins data: {e}")
 
+# Get statistics for coins
+
+
+@app.get("/crypto/statistics/",
+         status_code=200,
+         response_description="Get statistics for crypto coin")
+async def get_coin_statistics(
+    coin_name: str = Query("", min_length=0),
+):
+    try:
+        data = await get_coin_stats(coin_name)
+
+        res = pd.DataFrame(data)[["name", "image", "current_price", "high_24h", "low_24h", "sparkline_in_7d", "price_change_percentage_7d_in_currency"]].rename(columns={"high_24h": "high", "low_24h": "low"})
+
+        return res.to_dict(orient="records")[0]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error with getting statistics for {coin_name}: {e}")
+
 
 @app.get("/stocks/stock-list/", status_code=200,
          response_model=List[dict],
          response_description="Get list of all stocks available")
-async def get_stock_list(stock_name: Optional[str] = Query("", min_length=0)) -> List[str]:
+async def get_stock_list(
+    stock_name: Optional[str] = Query("", min_length=0)
+) -> List[str]:
     try:
         return await get_stock_price(stock_name=stock_name)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{e}")
+
+# Get statistics for stocks
+
+
+@app.get("/stocks/statistics/", status_code=200,
+         response_description="Get statistics for the stock")
+async def get_stock_statistics(
+    stock_name: str = Query("", min_length=0),
+):
+    try:
+        data = await get_stock_stats(stock_name)
+
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error with getting statistics for {stock_name}: {e}")
 
 # Notify me when stock/crpyto 'crypto_name/stock_name' is going to be less/greater than 'value' 'currency'
 
