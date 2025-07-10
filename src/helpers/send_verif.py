@@ -19,7 +19,7 @@ def send_verification_email(email: str, res: Response):
                 <p>Hello,</p>
                 <p>Thank you for registering on our platform.</p>
                 <p>Please confirm your email by entering the following verification code:</p>
-                <p style="font-size: 24px; font-weight: bold; color: #3498db; letter-spacing: 4px; text-align: center;">{code}</p>
+                <p style="font-size: 26px; font-weight: bold; color: #3498db; letter-spacing: 2px; text-align: center;">{code}</p>
                 <p>If you didn't request this, you can safely ignore this email.</p>
                 <p style="margin-top: 20px;">— The Crypto&Stocks Tracker Team</p>
                 </div>

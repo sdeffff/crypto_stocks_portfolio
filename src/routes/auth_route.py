@@ -1,0 +1,100 @@
+from datetime import timedelta
+import os
+
+from dotenv import load_dotenv
+
+from fastapi import APIRouter, Response, HTTPException
+from fastapi.responses import JSONResponse
+
+from src.models.models import User
+from src.schemas.request_types import UserType, LoginType
+
+from src.auth.auth_service import register_user, user_exists
+from src.helpers.pwd_helper import comparePwds, hashPwd
+from src.helpers.send_verif import send_verification_email, check_verified
+from src.auth.auth_service import create_token
+
+from src.database.db import session
+
+load_dotenv()
+
+router = APIRouter()
+
+
+@router.post("/register", status_code=200)
+async def register(user_data: UserType, res: Response):
+    if await user_exists(session, user_data.email):
+        raise HTTPException(status_code=406, detail="User with such email already exists")
+
+    try:
+        hashedPwd = (await hashPwd(user_data.password)).decode('utf-8')
+
+        user_data.password = hashedPwd
+
+        user_data.pfp = f"https://eu.ui-avatars.com/api/?name={user_data.username}"
+
+        await register_user(user_data=user_data)
+
+        res.status_code = 201
+
+        send_verification_email(user_data.email, res)
+
+        return "Verification email was sent tou your email address"
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Happened some error with registration: {e}")
+
+
+@router.post("/login", status_code=200)
+async def login(data: LoginType):
+    if not check_verified(data.email):
+        raise HTTPException(status_code=403, detail="You didn't verify your email")
+
+    try:
+        user = session.query(User).filter(User.email == data.email).first()
+
+        doesMatch = await comparePwds(data.password, user.password)
+
+        if not doesMatch:
+            raise HTTPException(status_code=409, detail="Incorrect password for provided email")
+
+        payload = {
+            "uid": user.id,
+            "role": user.role,
+            "email": user.email
+        }
+
+        res = JSONResponse(
+            status_code=200,
+            content={
+                "message": "Logged in successfully",
+                "uid": user.id,
+                "role": user.role,
+                "pfp": user.pfp,
+                "username": user.username
+            }
+        )
+
+        access_token = await create_token(payload, timedelta(minutes=15), os.getenv("ACCESS_TOKEN_SECRET"))
+        refresh_token = await create_token(payload, timedelta(days=1), os.getenv("REFRESH_TOKEN_SECRET"))
+
+        res.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=os.getenv("PROD") == "production",
+            samesite="lax",
+            max_age=15 * 60
+        )
+
+        res.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=os.getenv("PROD") == "production",
+            samesite="lax",
+            max_age=24 * 60 * 60
+        )
+
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Happened some error with login: {e}")
