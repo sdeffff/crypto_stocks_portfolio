@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime
 
 """Models/Classes to identify types of data in endpoints"""
@@ -52,3 +52,17 @@ class NotifyModel(BaseModel):
 
 class CodeRequest(BaseModel):
     code: str
+
+
+class SparklineIn7D(BaseModel):
+    price: List[float]
+
+
+class StatisticsResponse(BaseModel):
+    name: str
+    image: Optional[str] = ""
+    current_price: float
+    high: float
+    low: float
+    sparkline_in_7d: SparklineIn7D
+    price_change_percentage_7d_in_currency: float

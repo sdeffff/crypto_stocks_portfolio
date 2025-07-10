@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, Query
 from pycoingecko import CoinGeckoAPI
 
-from src.schemas.request_types import CoinsRequest
+from src.schemas.request_types import CoinsRequest, StatisticsResponse
 from src.helpers.statistics_helper import get_coin_stats
 
 load_dotenv()
@@ -53,6 +53,7 @@ async def get_coin_list(
 
 @router.get("/statistics/",
             status_code=200,
+            response_model=StatisticsResponse,
             response_description="Get statistics for crypto coin")
 async def get_coin_statistics(
     coin_name: str = Query("", min_length=0),
