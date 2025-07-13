@@ -1,25 +1,22 @@
 import os
-import pandas as pd
 import stripe
 
 from dotenv import load_dotenv
-from datetime import timedelta
-from fastapi import FastAPI, Response, Request, HTTPException, Query
-from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
+from fastapi import FastAPI, Response, Request, HTTPException
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pycoingecko import CoinGeckoAPI
-from typing import List, Optional
+from typing import List
 
 from src.database.db import session
 from src.models.models import User, Subscritions, Notifications
-from src.schemas.request_types import UserType, LoginType, CoinsRequest, NotifyRequest, CodeRequest
-from src.auth.auth_service import register_user, user_exists, create_token, get_user_by_id, check_auth
+from src.schemas.request_types import UserType, NotifyRequest, CodeRequest
+from src.auth.auth_service import get_user_by_id, check_auth
 
-from src.helpers.pwd_helper import hashPwd, comparePwds
 from src.helpers.subscription_helper import addSubscription
-from src.helpers.stocks_helper import get_stock_price
-from src.helpers.send_verif import send_verification_email, check_code, check_verified
-from src.helpers.statistics_helper import get_coin_stats, get_stock_stats
+from src.helpers.send_verif import check_code
+
+from src.routes import auth_route, coin_route, stock_route, payment_route
 
 load_dotenv()
 
@@ -40,6 +37,11 @@ app.add_middleware(
 cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+
+app.include_router(auth_route.router, prefix="/auth")
+app.include_router(coin_route.router, prefix="/crypto")
+app.include_router(stock_route.router, prefix="/stocks")
+app.include_router(payment_route.router, prefix="/payment")
 
 
 @app.get("/users",
@@ -76,82 +78,6 @@ async def user_profile(uid: str, res: Response, req: Request):
         return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
 
 
-@app.post("/auth/register", status_code=200)
-async def register(user_data: UserType, res: Response):
-    if await user_exists(session, user_data.email):
-        raise HTTPException(status_code=404, detail="User with such email already exists")
-
-    try:
-        hashedPwd = (await hashPwd(user_data.password)).decode('utf-8')
-
-        user_data.password = hashedPwd
-
-        user_data.pfp = f"https://eu.ui-avatars.com/api/?name={user_data.username}"
-
-        await register_user(user_data=user_data)
-
-        res.status_code = 201
-
-        send_verification_email(user_data.email, res)
-
-        return "Verification email was sent tou your email address"
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Happened some error with registration: {e}")
-
-
-@app.post("/auth/login", status_code=200)
-async def login(data: LoginType):
-    if not check_verified(data.email):
-        raise HTTPException(status_code=403, detail="You didn't verify your email")
-
-    try:
-        user = session.query(User).filter(User.email == data.email).first()
-
-        doesMatch = await comparePwds(data.password, user.password)
-
-        if not doesMatch:
-            raise HTTPException(status_code=409, detail="Incorrect password for provided email")
-
-        payload = {
-            "uid": user.id,
-            "role": user.role,
-            "email": user.email
-        }
-
-        res = JSONResponse(
-            status_code=200,
-            content={
-                "message": "Logged in successfully",
-                "uid": user.id
-            }
-        )
-
-        access_token = await create_token(payload, timedelta(minutes=15), os.getenv("ACCESS_TOKEN_SECRET"))
-        refresh_token = await create_token(payload, timedelta(days=1), os.getenv("REFRESH_TOKEN_SECRET"))
-
-        res.set_cookie(
-            key="access_token",
-            value=access_token,
-            httponly=True,
-            secure=os.getenv("PROD") == "production",
-            samesite="lax",
-            max_age=15 * 60
-        )
-
-        res.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            httponly=True,
-            secure=os.getenv("PROD") == "production",
-            samesite="lax",
-            max_age=24 * 60 * 60
-        )
-
-        return res
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Happened some error with login: {e}")
-
-
 @app.post("/email-verification")
 async def verify_email(code: CodeRequest, req: Request, res: Response):
     try:
@@ -169,84 +95,6 @@ async def verify_email(code: CodeRequest, req: Request, res: Response):
         res.status_code = 400
 
         return "Code you provided is incorrect, try again!"
-
-
-@app.post("/crypto/coin-list",
-          status_code=200,
-          response_description="List of all available crypto currencies")
-async def get_coin_list(
-    payload: CoinsRequest, page: int = Query(1, ge=1),
-    crypto: List[str] = Query(default=[]),
-    sort_by: Optional[str] = Query("", min_length=0),
-    sort_order: Optional[str] = Query("", min_length=0)
-):
-    try:
-        data = cg.get_coins_markets(vs_currency=payload.currency or "usd", page=(page if page else 1))
-
-        df = None
-
-        if payload.names:
-            df = pd.DataFrame(data)[["id", "image", "current_price"]]
-        else:
-            df = pd.DataFrame(data)[["id", "symbol", "image", "current_price", "market_cap", "market_cap_rank", "price_change_percentage_24h"]]
-
-        if crypto:
-            filtered_df = df[df.id.isin([c.lower() for c in crypto])]
-        else:
-            filtered_df = df
-
-        sort_column = sort_by if sort_by else "current_price"
-        sorted_df = filtered_df.sort_values(by=sort_column, ascending=(True if sort_order == "asc" else False))
-
-        return sorted_df.head(payload.limit).to_dict(orient="records")
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Happened some error with getting coins data: {e}")
-
-# Get statistics for coins
-
-
-@app.get("/crypto/statistics/",
-         status_code=200,
-         response_description="Get statistics for crypto coin")
-async def get_coin_statistics(
-    coin_name: str = Query("", min_length=0),
-):
-    try:
-        data = await get_coin_stats(coin_name)
-
-        res = pd.DataFrame(data)[["name", "image", "current_price", "high_24h", "low_24h", "sparkline_in_7d", "price_change_percentage_7d_in_currency"]].rename(columns={"high_24h": "high", "low_24h": "low"})
-
-        return res.to_dict(orient="records")[0]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error with getting statistics for {coin_name}: {e}")
-
-
-@app.get("/stocks/stock-list/", status_code=200,
-         response_model=List[dict],
-         response_description="Get list of all stocks available")
-async def get_stock_list(
-    stock_name: Optional[str] = Query("", min_length=0)
-) -> List[str]:
-    try:
-        return await get_stock_price(stock_name=stock_name)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{e}")
-
-# Get statistics for stocks
-
-
-@app.get("/stocks/statistics/", status_code=200,
-         response_description="Get statistics for the stock")
-async def get_stock_statistics(
-    stock_name: str = Query("", min_length=0),
-):
-    try:
-        data = await get_stock_stats(stock_name)
-
-        return data
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error with getting statistics for {stock_name}: {e}")
 
 # Notify me when stock/crpyto 'crypto_name/stock_name' is going to be less/greater than 'value' 'currency'
 
@@ -337,27 +185,3 @@ async def buy_premium(res: Response, req: Request):
             raise HTTPException(status_code=500, detail=f"Happened some error with checkout session: {e}")
     except Exception as e:
         raise HTTPException(status_code=409, detail=f"{e}")
-
-
-@app.get("/payment/success", response_class=HTMLResponse)
-async def payment_success(req: Request):
-    session_id = req.query_params.get("session_id")
-
-    try:
-        stripe_session = stripe.checkout.Session.retrieve(session_id)
-        users_email = stripe_session.get("customer_email")
-
-        user = session.query(User).filter(User.email == users_email).first()
-
-        if user:
-            user.premium = True
-            session.commit()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Happened error with payment: {e}")
-
-    return "<h1>Payment Successful! You're now a premium user 🎉</h1>"
-
-
-@app.get("/payment/fail", response_class=HTMLResponse)
-async def payment_fail(req: Request):
-    return "<h1>Payment was unsucessfull, try again later!</h1>"
