@@ -61,7 +61,7 @@ async def get_coin_statistics(
     try:
         data = await get_coin_stats(coin_name)
 
-        res = pd.DataFrame(data)[["name", "image", "current_price", "high_24h", "low_24h", "sparkline_in_7d", "price_change_percentage_7d_in_currency"]].rename(columns={"high_24h": "high", "low_24h": "low"})
+        res = pd.DataFrame(data)[["name", "image", "current_price", "high_24h", "low_24h", "sparkline_in_7d", "price_change_percentage_24h_in_currency", "price_change_percentage_7d_in_currency"]].rename(columns={"high_24h": "high", "low_24h": "low"})
 
         return res.to_dict(orient="records")[0]
     except Exception as e:

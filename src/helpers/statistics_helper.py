@@ -49,7 +49,7 @@ async def get_stock_stats(stock_name: str):
 async def get_coin_stats(coin_name: str):
     res = cg.get_coins_markets(vs_currency="usd",
                                ids=coin_name,
-                               price_change_percentage="7d",
+                               price_change_percentage="24,7d",
                                sparkline=True)
 
     return res

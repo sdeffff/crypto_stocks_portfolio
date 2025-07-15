@@ -66,3 +66,4 @@ class StatisticsResponse(BaseModel):
     low: float
     sparkline_in_7d: SparklineIn7D
     price_change_percentage_7d_in_currency: float
+    price_change_percentage_24h_in_currency: float
