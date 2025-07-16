@@ -58,7 +58,7 @@ class SparklineIn7D(BaseModel):
     price: List[float]
 
 
-class StatisticsResponse(BaseModel):
+class StatisticsData(BaseModel):
     name: str
     image: Optional[str] = ""
     current_price: float
@@ -66,4 +66,9 @@ class StatisticsResponse(BaseModel):
     low: float
     sparkline_in_7d: SparklineIn7D
     price_change_percentage_7d_in_currency: float
-    price_change_percentage_24h_in_currency: float
+    price_change_percentage_24h: float
+
+
+class StatisticsResponse(BaseModel):
+    data: StatisticsData
+    isLoggedIn: bool

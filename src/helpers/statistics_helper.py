@@ -40,7 +40,8 @@ async def get_stock_stats(stock_name: str):
         'sparkline_in_7d': {
             'price': closes
         },
-        'price_change_percentage_7d_in_currency': get_stock_price_change(closes[0], closes[-1])
+        'price_change_percentage_7d_in_currency': get_stock_price_change(closes[0], closes[-1]),
+        'price_change_percentage_24h': get_stock_price_change(closes[0], closes[1])
     }
 
     return data

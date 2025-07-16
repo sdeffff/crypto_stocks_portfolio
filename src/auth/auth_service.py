@@ -85,7 +85,7 @@ async def generate_new_token(res: Response, payload):
 async def check_auth(res: Response, access_token: Optional[str], refresh_token: Optional[str]):
     try:
         if access_token:
-            return verify_access_token(access_token)
+            verify_access_token(access_token)
     except jwt.InvalidTokenError:
         clear_tokens(res)
 
@@ -106,3 +106,32 @@ async def check_auth(res: Response, access_token: Optional[str], refresh_token: 
         return payload
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+
+async def check_tokens(res: Response, access_token: Optional[str], refresh_token: Optional[str]) -> bool:
+    try:
+        if access_token:
+            verify_access_token(access_token)
+
+            return True
+    except jwt.InvalidTokenError:
+        clear_tokens(res)
+
+        return False
+
+    if not refresh_token: return False
+
+    try:
+        auth_data = verify_refresh_token(refresh_token)
+
+        payload = {
+            "uid": auth_data["uid"],
+            "role": auth_data["role"],
+            "email": auth_data["email"]
+        }
+
+        await generate_new_token(res, payload)
+
+        return True
+    except jwt.InvalidTokenError:
+        return False
