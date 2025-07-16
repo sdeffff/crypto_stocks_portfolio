@@ -50,9 +50,9 @@ async def get_coin_list(
         sorted_df = filtered_df.sort_values(by=sort_column, ascending=(True if sort_order == "asc" else False)).dropna()
 
         return {
-                "data": sorted_df.head(payload.limit).to_dict(orient="records"),
-                "isLoggedIn": is_logged_in
-            }
+            "data": sorted_df.head(payload.limit).to_dict(orient="records"),
+            "isLoggedIn": is_logged_in
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Happened some error with getting coins data: {e}")
 

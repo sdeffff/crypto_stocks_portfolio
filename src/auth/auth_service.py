@@ -119,7 +119,8 @@ async def check_tokens(res: Response, access_token: Optional[str], refresh_token
 
         return False
 
-    if not refresh_token: return False
+    if not refresh_token:
+        return False
 
     try:
         auth_data = verify_refresh_token(refresh_token)
