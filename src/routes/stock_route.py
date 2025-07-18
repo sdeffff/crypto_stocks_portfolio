@@ -12,18 +12,18 @@ router = APIRouter()
 
 
 @router.post("/stock-list/", status_code=200,
-            response_description="Get list of all stocks available")
+             response_description="Get list of all stocks available")
 async def get_stock_list(
     res: Response,
     req: Request,
-    stock_name: Optional[str] = Query("", min_length=0),
+    stock: Optional[str] = Query("", min_length=0),
     sort_by: Optional[str] = Query("", min_length=0),
     sort_order: Optional[str] = Query("", min_length=0)
 ):
     try:
         is_logged_in = await check_tokens(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
-        data = await get_stock_price(stock_name=stock_name, sort_by=sort_by, sort_order=sort_order)
+        data = await get_stock_price(stock_name=stock, sort_by=sort_by, sort_order=sort_order)
 
         return {
             "data": data,
@@ -41,16 +41,16 @@ async def get_stock_list(
 async def get_stock_statistics(
     res: Response,
     req: Request,
-    stock_name: str = Query("", min_length=0),
+    stock: str = Query("", min_length=0),
 ):
     try:
         is_logged_in = await check_tokens(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
-        data = await get_stock_stats(stock_name)
+        data = await get_stock_stats(stock)
 
         return {
             "data": data,
             "isLoggedIn": is_logged_in
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error with getting statistics for {stock_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error with getting statistics for {stock}: {e}")

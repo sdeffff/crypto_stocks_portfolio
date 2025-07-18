@@ -4,7 +4,6 @@ import pandas as pd
 import yfinance as yf
 
 from datetime import datetime
-from src.helpers.statistics_helper import get_stock_stats
 
 
 def get_stocks():
@@ -42,7 +41,7 @@ async def get_stock_price(stock_name: str, sort_by: str, sort_order: str):
                             continue
 
                         res.append({
-                            "name": ticker,
+                            "id": ticker,
                             "date": df[ticker].index[-1].strftime('%Y-%m-%d'),
                             "open": float(data["Open"]),
                             "current_price": float(data["Close"]),
@@ -56,7 +55,7 @@ async def get_stock_price(stock_name: str, sort_by: str, sort_order: str):
 
             sort_column = sort_by if sort_by else "current_price"
 
-            res.sort(key=lambda x: x[sort_column], reverse=sort_order=="desc")
+            res.sort(key=lambda x: x[sort_column], reverse=sort_order == "desc")
 
             return res
         else:
@@ -74,7 +73,7 @@ async def get_stock_price(stock_name: str, sort_by: str, sort_order: str):
             latest = df.iloc[-1]
 
             res.append({
-                "stock": stock_name.upper(),
+                "id": stock_name.upper(),
                 "date": df.index[-1].strftime('%Y-%m-%d'),
                 "open": float(latest["Open"]),
                 "close": float(latest["Close"]),
