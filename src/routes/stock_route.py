@@ -11,17 +11,19 @@ from src.auth.auth_service import check_tokens
 router = APIRouter()
 
 
-@router.get("/stock-list/", status_code=200,
+@router.post("/stock-list/", status_code=200,
             response_description="Get list of all stocks available")
 async def get_stock_list(
     res: Response,
     req: Request,
-    stock_name: Optional[str] = Query("", min_length=0)
+    stock_name: Optional[str] = Query("", min_length=0),
+    sort_by: Optional[str] = Query("", min_length=0),
+    sort_order: Optional[str] = Query("", min_length=0)
 ):
     try:
         is_logged_in = await check_tokens(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
-        data = await get_stock_price(stock_name=stock_name)
+        data = await get_stock_price(stock_name=stock_name, sort_by=sort_by, sort_order=sort_order)
 
         return {
             "data": data,

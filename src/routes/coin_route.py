@@ -18,14 +18,14 @@ router = APIRouter()
 cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
 
 
-@router.post("/coin-list",
+@router.post("/crypto-list",
              status_code=200,
              response_description="List of all available crypto currencies")
 async def get_coin_list(
     res: Response,
     req: Request,
     payload: CoinsRequest, page: int = Query(1, ge=1),
-    crypto: List[str] = Query(default=[]),
+    crypto_name: List[str] = Query(default=[]),
     sort_by: Optional[str] = Query("", min_length=0),
     sort_order: Optional[str] = Query("", min_length=0)
 ):
@@ -41,8 +41,8 @@ async def get_coin_list(
         else:
             df = pd.DataFrame(data)[["id", "symbol", "image", "current_price", "market_cap", "market_cap_rank", "price_change_percentage_24h"]]
 
-        if crypto:
-            filtered_df = df[df.id.isin([c.lower() for c in crypto])]
+        if crypto_name:
+            filtered_df = df[df.id.isin([c.lower() for c in crypto_name])]
         else:
             filtered_df = df
 
@@ -66,12 +66,12 @@ async def get_coin_list(
 async def get_coin_statistics(
     res: Response,
     req: Request,
-    coin_name: str = Query("", min_length=0),
+    crypto_name: str = Query("", min_length=0),
 ):
     try:
         is_logged_in = await check_tokens(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
-        data = await get_coin_stats(coin_name)
+        data = await get_coin_stats(crypto_name)
 
         res = pd.DataFrame(data)[["name", "image", "current_price", "high_24h", "low_24h", "sparkline_in_7d", "price_change_percentage_24h", "price_change_percentage_7d_in_currency"]].rename(columns={"high_24h": "high", "low_24h": "low"})
 
@@ -80,4 +80,4 @@ async def get_coin_statistics(
             "isLoggedIn": is_logged_in
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error with getting statistics for {coin_name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error with getting statistics for {crypto_name}: {e}")
