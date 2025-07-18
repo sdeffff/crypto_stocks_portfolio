@@ -40,14 +40,18 @@ async def get_stock_price(stock_name: str, sort_by: str, sort_order: str):
                         if pd.isna(data["Volume"]):
                             continue
 
+                        stock_info = yf.Ticker(ticker=ticker)
+                        info = stock_info.info
+
                         res.append({
                             "id": ticker,
+                            'image': f"https://logo.clearbit.com/{info.get('website', ticker.lower())}",
                             "date": df[ticker].index[-1].strftime('%Y-%m-%d'),
                             "open": float(data["Open"]),
                             "current_price": float(data["Close"]),
                             "high": float(data["High"]),
                             "low": float(data["Low"]),
-                            "market_cap": int(data["Volume"]),
+                            "market_cap": info.get('marketCap', 0)
                             # "price_change_percentage_24h": price_stats["price_change_percentage_24h"]
                         })
                 except Exception:
@@ -72,14 +76,18 @@ async def get_stock_price(stock_name: str, sort_by: str, sort_order: str):
             res = []
             latest = df.iloc[-1]
 
+            stock_info = yf.Ticker(ticker=stock_name)
+            info = stock_info.info
+
             res.append({
                 "id": stock_name.upper(),
+                'image': f"https://logo.clearbit.com/{info.get('website', ticker.lower())}",
                 "date": df.index[-1].strftime('%Y-%m-%d'),
                 "open": float(latest["Open"]),
-                "close": float(latest["Close"]),
+                "current_price": float(latest["Close"]),
                 "high": float(latest["High"]),
                 "low": float(latest["Low"]),
-                "volume": int(latest["Volume"]),
+                "market_cap": int(latest["Volume"]),
             })
 
             return res

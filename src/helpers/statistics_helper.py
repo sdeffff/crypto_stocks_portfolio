@@ -1,5 +1,7 @@
 import os
 
+from typing import List
+
 from datetime import datetime, timedelta
 
 from dotenv import load_dotenv
@@ -13,38 +15,46 @@ cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
 
 
 def get_stock_price_change(curr_price, oldest_price):
-    percentage = ((curr_price * 100) / oldest_price)
+    if oldest_price == 0:
+        return 0
+    percentage = ((curr_price - oldest_price) / oldest_price) * 100
+    return percentage
 
-    res = 100 - percentage
 
-    return res
-
-
-async def get_stock_stats(stock_name: str):
+async def get_stock_stats(stock_names: List[str]):
     start_date = (datetime.today() - timedelta(days=21)).strftime("%Y-%m-%d")
 
-    df = yf.download(
-        stock_name.upper(),
-        start=start_date,
-        auto_adjust=False,
-        progress=False
-    )
+    res = []
 
-    closes = df['Close'].squeeze().tolist()
+    for stock in stock_names:
+        df = yf.download(
+            stock.upper(),
+            start=start_date,
+            auto_adjust=False,
+            progress=False
+        )
 
-    data = {
-        'name': stock_name.upper(),
-        'current_price': closes[-1],
-        'high': max(closes),
-        'low': min(closes),
-        'sparkline_in_7d': {
-            'price': closes
-        },
-        'price_change_percentage_7d_in_currency': get_stock_price_change(closes[0], closes[-1]),
-        'price_change_percentage_24h': get_stock_price_change(closes[0], closes[1])
-    }
+        closes = df['Close'].squeeze().tolist()
 
-    return data
+        stock_info = yf.Ticker(stock.upper())
+        info = stock_info.info
+
+        data = {
+            'name': stock.upper(),
+            'image': f"https://logo.clearbit.com/{info.get('website', stock.lower())}",
+            'current_price': closes[-1],
+            'high': max(closes),
+            'low': min(closes),
+            'sparkline_in_7d': {
+                'price': closes
+            },
+            'price_change_percentage_7d_in_currency': get_stock_price_change(closes[0], closes[-1]),
+            'price_change_percentage_24h': get_stock_price_change(closes[-2], closes[-1])
+        }
+
+        res.append(data)
+
+    return res
 
 
 async def get_coin_stats(coin_name: str):

@@ -70,5 +70,5 @@ class StatisticsData(BaseModel):
 
 
 class StatisticsResponse(BaseModel):
-    data: StatisticsData
+    data: List[StatisticsData]
     isLoggedIn: bool

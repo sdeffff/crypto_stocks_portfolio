@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query, Response, Request
 
@@ -41,7 +41,7 @@ async def get_stock_list(
 async def get_stock_statistics(
     res: Response,
     req: Request,
-    stock: str = Query("", min_length=0),
+    stock: List[str] = Query(default=[]),
 ):
     try:
         is_logged_in = await check_tokens(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
