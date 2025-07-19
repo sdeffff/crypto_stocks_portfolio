@@ -3,13 +3,13 @@ import os
 import dotenv
 from datetime import datetime, timedelta
 from fastapi import HTTPException, Response
-from database.db import session
+from src.database.db import session
 from sqlalchemy.orm import Session
 from typing import Optional
 
-from classes.user_type import UserType
+from src.schemas.request_types import UserType
 
-from models.models import User
+from src.models.models import User
 
 dotenv.load_dotenv()
 
@@ -21,7 +21,7 @@ async def create_token(payload: dict, exp: timedelta, secret: str):
     return jwt.encode(payload_copy, secret, algorithm="HS256")
 
 
-async def check_if_user_exists(session: Session, email: str) -> bool:
+async def user_exists(session: Session, email: str) -> bool:
     user = session.query(User).filter(User.email == email).first()
 
     return True if user else False
@@ -83,19 +83,15 @@ async def generate_new_token(res: Response, payload):
 async def check_auth(res: Response, access_token: Optional[str], refresh_token: Optional[str]):
     try:
         if access_token:
-            return jwt.decode(access_token, os.getenv("ACCESS_TOKEN_SECRET"), algorithms=["HS256"])
-    except jwt.ExpiredSignatureError:
-        # Access token expired, attempt refresh
-        pass
+            verify_access_token(access_token)
     except jwt.InvalidTokenError:
-        # Access token invalid, try refresh if available
-        pass
+        clear_tokens(res)
 
     if not refresh_token:
-        raise HTTPException(status_code=403, detail="Access token expired or invalid, and no refresh token provided.")
+        raise HTTPException(status_code=401, detail="You are not authenticated, no access and refresh token was found")
 
     try:
-        auth_data = jwt.decode(refresh_token, os.getenv("REFRESH_TOKEN_SECRET"), algorithms=["HS256"])
+        auth_data = verify_refresh_token(refresh_token)
 
         payload = {
             "uid": auth_data.get("uid", 0),
@@ -114,34 +110,6 @@ async def check_auth(res: Response, access_token: Optional[str], refresh_token: 
             samesite="lax",
             max_age=15 * 60
         )
-
-        return payload
-
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
-    
-
-async def check_users_auth(res: Response, access_token: Optional[str], refresh_token: Optional[str]):
-    try:
-        if access_token:
-            verify_access_token(access_token)
-    except jwt.InvalidTokenError:
-        clear_tokens(res)
-
-    if not refresh_token:
-        return {}
-
-    try:
-        auth_data = verify_refresh_token(refresh_token)
-
-        payload = {
-            "uid": auth_data.get("uid", 0),
-            "role": auth_data.get("role", ""),
-            "pfp": auth_data.get("pfp", ""),
-            "username": auth_data.get("username", "")
-        }
-
-        await generate_new_token(res, payload)
 
         return payload
     except jwt.InvalidTokenError:

@@ -1,0 +1,100 @@
+services:
+  web:
+    build: .
+    volumes:
+      - .:/app
+    environment: 
+      DATABASE_URL: ${DB_CONN_LINE}
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET}
+      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      MAIL_SERVER: ${MAIL_SERVER}
+      MAIL_PORT: ${MAIL_PORT}
+      MAIL_FROM: ${MAIL_USERNAME}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME}
+      REDIS_URL: ${REDIS_URL_DOCKER}
+    env_file:
+      - .env
+
+    ports:
+      - "8000:8000"
+
+    depends_on:
+      - db
+      - redis
+
+    networks:
+      - app-network
+
+  db:
+    image: postgres:15
+
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_PASSWORD: ${DB_PWD}
+    env_file:
+      - .env
+
+    ports:
+     - "5432:5432"
+
+    volumes:
+      - db-data:/var/lib/postgresql/data
+
+    networks:
+      - app-network
+  redis:
+    image: redis:6
+
+    ports:
+     - "6379:6379"
+
+    networks:
+     - app-network
+
+  celery:
+    build: .
+
+    command: celery -A src.celery_worker worker --pool=solo -l info
+
+    volumes:
+      - .:/app
+
+    depends_on:
+      - redis
+
+    environment:
+      REDIS_URL: ${REDIS_URL}
+    env_file:
+      - .env
+
+    networks:
+      - app-network
+
+  celery-beat:
+    build: .
+
+    command: celery -A src.celery_worker beat --loglevel=info
+
+    volumes:
+      - .:/app
+
+    depends_on:
+      - redis
+    
+    environment:
+      REDIS_URL: ${REDIS_URL}
+    env_file:
+      - .env
+    
+    networks:
+      - app-network
+
+volumes:
+  db-data:
+
+networks:
+  app-network:
+    driver: bridge
