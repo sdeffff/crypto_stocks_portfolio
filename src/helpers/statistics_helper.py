@@ -16,7 +16,7 @@ cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
 
 def get_stock_price_change(curr_price, oldest_price):
     if oldest_price == 0:
-        return 0    
+        return 0
     percentage = ((curr_price - oldest_price) / oldest_price) * 100
     return percentage
 

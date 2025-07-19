@@ -114,7 +114,7 @@ async def check_auth(res: Response, access_token: Optional[str], refresh_token: 
         return payload
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
-    
+
 
 async def check_users_auth(res: Response, access_token: Optional[str], refresh_token: Optional[str]):
     try:

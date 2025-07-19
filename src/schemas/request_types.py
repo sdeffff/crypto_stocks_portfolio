@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List, Literal, Union
+from typing import Optional, List, Union
 from datetime import datetime
 
 """Models/Classes to identify types of data in endpoints"""
