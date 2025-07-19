@@ -54,8 +54,6 @@ async def get_user_by_id(uid: str):
     }
 
 
-<<<<<<< Updated upstream
-=======
 def verify_access_token(access_token: str):
     return jwt.decode(access_token, os.getenv("ACCESS_TOKEN_SECRET"), algorithms=[os.getenv("JWT_ALGORITHM")])
 
@@ -82,7 +80,6 @@ async def generate_new_token(res: Response, payload):
     )
 
 
->>>>>>> Stashed changes
 async def check_auth(res: Response, access_token: Optional[str], refresh_token: Optional[str]):
     try:
         if access_token:
@@ -101,15 +98,10 @@ async def check_auth(res: Response, access_token: Optional[str], refresh_token: 
         auth_data = jwt.decode(refresh_token, os.getenv("REFRESH_TOKEN_SECRET"), algorithms=["HS256"])
 
         payload = {
-<<<<<<< Updated upstream
-            "uid": auth_data["uid"],
-            "role": auth_data["role"]
-=======
             "uid": auth_data.get("uid", 0),
             "role": auth_data.get("role", ""),
             "pfp": auth_data.get("pfp", ""),
             "username": auth_data.get("username", "")
->>>>>>> Stashed changes
         }
 
         new_access_token = await create_token(payload, timedelta(minutes=15), os.getenv("ACCESS_TOKEN_SECRET"))
@@ -127,8 +119,33 @@ async def check_auth(res: Response, access_token: Optional[str], refresh_token: 
 
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
-<<<<<<< Updated upstream
-=======
+    
+
+async def check_users_auth(res: Response, access_token: Optional[str], refresh_token: Optional[str]):
+    try:
+        if access_token:
+            verify_access_token(access_token)
+    except jwt.InvalidTokenError:
+        clear_tokens(res)
+
+    if not refresh_token:
+        return {}
+
+    try:
+        auth_data = verify_refresh_token(refresh_token)
+
+        payload = {
+            "uid": auth_data.get("uid", 0),
+            "role": auth_data.get("role", ""),
+            "pfp": auth_data.get("pfp", ""),
+            "username": auth_data.get("username", "")
+        }
+
+        await generate_new_token(res, payload)
+
+        return payload
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
     
 
 async def check_users_auth(res: Response, access_token: Optional[str], refresh_token: Optional[str]):
@@ -186,4 +203,3 @@ async def check_tokens(res: Response, access_token: Optional[str], refresh_token
         return True
     except jwt.InvalidTokenError:
         return False
->>>>>>> Stashed changes
