@@ -54,6 +54,35 @@ async def get_user_by_id(uid: str):
     }
 
 
+<<<<<<< Updated upstream
+=======
+def verify_access_token(access_token: str):
+    return jwt.decode(access_token, os.getenv("ACCESS_TOKEN_SECRET"), algorithms=[os.getenv("JWT_ALGORITHM")])
+
+
+def verify_refresh_token(refresh_token: str):
+    return jwt.decode(refresh_token, os.getenv("REFRESH_TOKEN_SECRET"), algorithms=[os.getenv("JWT_ALGORITHM")])
+
+
+def clear_tokens(res: Response):
+    res.delete_cookie("access_token")
+    res.delete_cookie("refresh_token")
+
+
+async def generate_new_token(res: Response, payload):
+    new_token = await create_token(payload, timedelta(minutes=15), os.getenv("ACCESS_TOKEN_SECRET"))
+
+    res.set_cookie(
+        key="access_token",
+        value=new_token,
+        httponly=True,
+        secure=os.getenv("PROD") == "production",
+        samesite="lax",
+        max_age=15 * 60
+    )
+
+
+>>>>>>> Stashed changes
 async def check_auth(res: Response, access_token: Optional[str], refresh_token: Optional[str]):
     try:
         if access_token:
@@ -72,8 +101,15 @@ async def check_auth(res: Response, access_token: Optional[str], refresh_token: 
         auth_data = jwt.decode(refresh_token, os.getenv("REFRESH_TOKEN_SECRET"), algorithms=["HS256"])
 
         payload = {
+<<<<<<< Updated upstream
             "uid": auth_data["uid"],
             "role": auth_data["role"]
+=======
+            "uid": auth_data.get("uid", 0),
+            "role": auth_data.get("role", ""),
+            "pfp": auth_data.get("pfp", ""),
+            "username": auth_data.get("username", "")
+>>>>>>> Stashed changes
         }
 
         new_access_token = await create_token(payload, timedelta(minutes=15), os.getenv("ACCESS_TOKEN_SECRET"))
@@ -91,3 +127,63 @@ async def check_auth(res: Response, access_token: Optional[str], refresh_token: 
 
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
+<<<<<<< Updated upstream
+=======
+    
+
+async def check_users_auth(res: Response, access_token: Optional[str], refresh_token: Optional[str]):
+    try:
+        if access_token:
+            verify_access_token(access_token)
+    except jwt.InvalidTokenError:
+        clear_tokens(res)
+
+    if not refresh_token:
+        return {}
+
+    try:
+        auth_data = verify_refresh_token(refresh_token)
+
+        payload = {
+            "uid": auth_data.get("uid", 0),
+            "role": auth_data.get("role", ""),
+            "pfp": auth_data.get("pfp", ""),
+            "username": auth_data.get("username", "")
+        }
+
+        await generate_new_token(res, payload)
+
+        return payload
+    except jwt.InvalidTokenError:
+        return {}
+
+
+async def check_tokens(res: Response, access_token: Optional[str], refresh_token: Optional[str]) -> bool:
+    try:
+        if access_token:
+            verify_access_token(access_token)
+
+            return True
+    except jwt.InvalidTokenError:
+        clear_tokens(res)
+
+        return False
+
+    if not refresh_token:
+        return False
+
+    try:
+        auth_data = verify_refresh_token(refresh_token)
+
+        payload = {
+            "uid": auth_data["uid"],
+            "role": auth_data["role"],
+            "email": auth_data["email"]
+        }
+
+        await generate_new_token(res, payload)
+
+        return True
+    except jwt.InvalidTokenError:
+        return False
+>>>>>>> Stashed changes
