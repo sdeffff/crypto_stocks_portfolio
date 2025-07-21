@@ -30,6 +30,13 @@ jobs:
         DB_CONN_LINE: ${{ secrets.DB_CONN_LINE }}
         GECKO_API_KEY: ${{ secrets.GECKO_API_KEY }}
         ACCESS_TOKEN_SECRET: ${{ secrets.ACCESS_TOKEN_SECRET }}
-        JWT_ALGORITHM: ${{ secrets.JWT_ALGORITHM }}
+        MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+        MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+        MAIL_SERVER: ${{ secrets.MAIL_SERVER }}
+        MAIL_FROM_NAME: ${{ secrets.MAIL_FROM_NAME }}
+        MAIL_PORT: ${{ secrets.MAIL_PORT }}
+        STRIPE_PUBLISH_KEY: ${{ secrets.STRIPE_PUBLISH_KEY }}
+        STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+        STRIPE_WEBHOOK_KEY: ${{ secrets.STRIPE_WEBHOOK_KEY }}
       working-directory: ./
       continue-on-error: false
