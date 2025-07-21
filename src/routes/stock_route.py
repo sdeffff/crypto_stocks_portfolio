@@ -34,8 +34,6 @@ async def get_stock_list(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{e}")
 
-# Get statistics for stocks
-
 
 @router.get("/statistics/", status_code=200,
             response_model=StatisticsResponse,

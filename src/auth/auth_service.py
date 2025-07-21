@@ -14,7 +14,11 @@ from src.models.models import User
 dotenv.load_dotenv()
 
 
-async def create_token(payload: dict, exp: timedelta, secret: str):
+async def create_token(
+        payload: dict,
+        exp: timedelta,
+        secret: str
+):
     payload_copy = payload.copy()
     payload_copy["exp"] = datetime.now() + exp
 

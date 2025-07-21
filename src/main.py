@@ -10,11 +10,10 @@ from typing import List
 
 from src.database.db import session
 from src.models.models import User, Subscritions, Notifications
-from src.schemas.request_types import UserType, NotifyRequest, CodeRequest
+from src.schemas.request_types import UserType, NotifyRequest
 from src.auth.auth_service import get_user_by_id, check_auth
 
 from src.helpers.subscription_helper import addSubscription
-from src.helpers.send_verif import check_code
 
 from src.routes import auth_route, coin_route, stock_route, payment_route
 
@@ -76,25 +75,6 @@ async def user_profile(uid: str, res: Response, req: Request):
     except Exception as e:
         res.status_code = 401
         return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
-
-
-@app.post("/email-verification")
-async def verify_email(code: CodeRequest, req: Request, res: Response):
-    try:
-        verif_status = check_code(req, code.code)
-    except Exception as e:
-        raise HTTPException(detail=f"Happened some error with code: {e}", status_code=404)
-
-    if verif_status:
-        res.status_code = 200
-
-        req.cookies.clear()
-
-        return "Your email was successfully confirmed, thanks!"
-    else:
-        res.status_code = 400
-
-        return "Code you provided is incorrect, try again!"
 
 # Notify me when stock/crpyto 'crypto_name/stock_name' is going to be less/greater than 'value' 'currency'
 

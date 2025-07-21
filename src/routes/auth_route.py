@@ -3,15 +3,15 @@ import os
 
 from dotenv import load_dotenv
 
-from fastapi import APIRouter, Response, HTTPException
+from fastapi import APIRouter, Response, Request, HTTPException
 from fastapi.responses import JSONResponse
 
 from src.models.models import User
-from src.schemas.request_types import UserType, LoginType
+from src.schemas.request_types import UserType, LoginType, CodeRequest
 
 from src.auth.auth_service import register_user, user_exists
 from src.helpers.pwd_helper import comparePwds, hashPwd
-from src.helpers.send_verif import send_verification_email, check_verified
+from src.helpers.send_verif import send_verification_email, check_verified, check_code
 from src.auth.auth_service import create_token, clear_tokens
 
 from src.database.db import session
@@ -22,7 +22,10 @@ router = APIRouter()
 
 
 @router.post("/register", status_code=200)
-async def register(user_data: UserType, res: Response):
+async def register(
+    user_data: UserType,
+    res: Response
+):
     if await user_exists(session, user_data.email):
         raise HTTPException(status_code=406, detail="User with such email already exists")
 
@@ -39,9 +42,31 @@ async def register(user_data: UserType, res: Response):
 
         send_verification_email(user_data.email, res)
 
-        return "Verification email was sent tou your email address"
+        return JSONResponse(
+            status_code=200,
+            content="Verification code was sent to your email!"
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Happened some error with registration: {e}")
+
+
+@router.post("/email-verification")
+async def verify_email(code: CodeRequest, req: Request, res: Response):
+    try:
+        verif_status = check_code(req, code.code)
+    except Exception as e:
+        raise HTTPException(detail=f"Happened some error with code: {e}", status_code=404)
+
+    if verif_status:
+        res.status_code = 200
+
+        req.cookies.clear()
+
+        return "Your email was successfully confirmed, thanks!"
+    else:
+        res.status_code = 400
+
+        return "Code you provided is incorrect, try again!"
 
 
 @router.post("/login", status_code=200)

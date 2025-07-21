@@ -59,8 +59,6 @@ async def get_coin_list(
         print(e)
         raise HTTPException(status_code=500, detail=f"Happened some error with getting coins data: {e}")
 
-# Get statistics for coins
-
 
 @router.get("/statistics/",
             status_code=200,
