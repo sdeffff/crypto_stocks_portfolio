@@ -56,7 +56,6 @@ async def get_coin_list(
             "usersData": users_data
         }
     except Exception as e:
-        print(e)
         raise HTTPException(status_code=500, detail=f"Happened some error with getting coins data: {e}")
 
 
