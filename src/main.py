@@ -40,7 +40,7 @@ stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 app.include_router(auth_route.router, prefix="/auth")
 app.include_router(coin_route.router, prefix="/crypto")
-app.include_router(stock_route.router, prefix="/stocks")
+app.include_router(stock_route.router, prefix="/stock")
 app.include_router(payment_route.router, prefix="/payment")
 
 
