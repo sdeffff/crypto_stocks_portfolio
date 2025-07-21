@@ -20,6 +20,6 @@ jobs:
         pip install -r requirements.txt
 
     - name: Run Pytest
-      run: pytest ./__tests__/crypto_tests.py
+      run: PYTHONPATH=. pytest ./__tests__/crypto_tests.py
       working-directory: ./
       continue-on-error: false
