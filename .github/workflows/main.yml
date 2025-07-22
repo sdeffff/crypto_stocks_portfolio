@@ -46,7 +46,7 @@ jobs:
 
       - name: Run Tests
         run: |
-          docker run --rm -e PYTHONPATH=. tracker-tests pytest ./__tests__ -s -v
+          docker run --rm --env-file .env -e PYTHONPATH=. tracker-tests pytest ./__tests__ -s -v
         working-directory: ./
         continue-on-error: false
         
