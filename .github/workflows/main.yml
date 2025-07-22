@@ -1,4 +1,4 @@
-name: Crypto Tests
+name: Tracker PipeLines
 
 on: [push, pull_request]
 
@@ -33,6 +33,16 @@ jobs:
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
+
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tracker-tests-image
+
+      - name: Load Docker image
+        run: |
+          gzip -d tracker-tests.tar.gz
+          docker load < tracker-tests.tar
 
       - name: Run Tests
         run: |
