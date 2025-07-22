@@ -17,7 +17,11 @@ def get_stocks():
     ]
 
 
-async def get_stock_price(stock_name: str, sort_by: str, sort_order: str):
+async def get_stock_price(
+        stock_name: str,
+        sort_by: str,
+        sort_order: str
+):
     try:
         if not stock_name:
             res = []

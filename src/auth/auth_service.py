@@ -14,7 +14,11 @@ from src.models.models import User
 dotenv.load_dotenv()
 
 
-async def create_token(payload: dict, exp: timedelta, secret: str):
+async def create_token(
+        payload: dict,
+        exp: timedelta,
+        secret: str
+):
     payload_copy = payload.copy()
     payload_copy["exp"] = datetime.now() + exp
 
@@ -66,8 +70,6 @@ def clear_tokens(res: Response):
     res.delete_cookie("access_token")
     res.delete_cookie("refresh_token")
 
-    raise HTTPException(status_code=409, detail="You have invalid token, try re-login")
-
 
 async def generate_new_token(res: Response, payload):
     new_token = await create_token(payload, timedelta(minutes=15), os.getenv("ACCESS_TOKEN_SECRET"))
@@ -96,16 +98,53 @@ async def check_auth(res: Response, access_token: Optional[str], refresh_token: 
         auth_data = verify_refresh_token(refresh_token)
 
         payload = {
-            "uid": auth_data["uid"],
-            "role": auth_data["role"],
-            "email": auth_data["email"]
+            "uid": auth_data.get("uid", 0),
+            "role": auth_data.get("role", ""),
+            "pfp": auth_data.get("pfp", ""),
+            "username": auth_data.get("username", "")
+        }
+
+        new_access_token = await create_token(payload, timedelta(minutes=15), os.getenv("ACCESS_TOKEN_SECRET"))
+
+        res.set_cookie(
+            key="access_token",
+            value=new_access_token,
+            httponly=True,
+            secure=os.getenv("PROD") == "production",
+            samesite="lax",
+            max_age=15 * 60
+        )
+
+        return payload
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+
+async def check_users_auth(res: Response, access_token: Optional[str], refresh_token: Optional[str]):
+    try:
+        if access_token:
+            verify_access_token(access_token)
+    except jwt.InvalidTokenError:
+        clear_tokens(res)
+
+    if not refresh_token:
+        return {}
+
+    try:
+        auth_data = verify_refresh_token(refresh_token)
+
+        payload = {
+            "uid": auth_data.get("uid", 0),
+            "role": auth_data.get("role", ""),
+            "pfp": auth_data.get("pfp", ""),
+            "username": auth_data.get("username", "")
         }
 
         await generate_new_token(res, payload)
 
         return payload
     except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
+        return {}
 
 
 async def check_tokens(res: Response, access_token: Optional[str], refresh_token: Optional[str]) -> bool:

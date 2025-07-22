@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional, List, Union
 from datetime import datetime
 
 """Models/Classes to identify types of data in endpoints"""
@@ -20,6 +20,13 @@ class UserProfileType(BaseModel):
     email: str
     country: str
     role: str
+
+
+class isUserLoggedInType(BaseModel):
+    uid: int = 0
+    username: str = ""
+    role: str = ""
+    pfp: str = ""
 
 
 class LoginType(BaseModel):
@@ -72,3 +79,4 @@ class StatisticsData(BaseModel):
 class StatisticsResponse(BaseModel):
     data: List[StatisticsData]
     isLoggedIn: bool
+    usersData: Union[isUserLoggedInType, dict]

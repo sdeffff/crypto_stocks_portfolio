@@ -9,7 +9,7 @@ from pycoingecko import CoinGeckoAPI
 
 from src.schemas.request_types import CoinsRequest, StatisticsResponse
 from src.helpers.statistics_helper import get_coin_stats
-from src.auth.auth_service import check_tokens
+from src.auth.auth_service import check_tokens, check_users_auth
 
 load_dotenv()
 
@@ -31,6 +31,7 @@ async def get_coin_list(
 ):
     try:
         is_logged_in = await check_tokens(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
+        users_data = await check_users_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
         data = cg.get_coins_markets(vs_currency=payload.currency or "usd", page=(page if page else 1))
 
@@ -51,12 +52,12 @@ async def get_coin_list(
 
         return {
             "data": sorted_df.head(payload.limit).to_dict(orient="records"),
-            "isLoggedIn": is_logged_in
+            "isLoggedIn": is_logged_in,
+            "usersData": users_data
         }
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=500, detail=f"Happened some error with getting coins data: {e}")
-
-# Get statistics for coins
 
 
 @router.get("/statistics/",
@@ -70,6 +71,7 @@ async def get_coin_statistics(
 ):
     try:
         is_logged_in = await check_tokens(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
+        users_data = await check_users_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
         data = await get_coin_stats(crypto)
 
@@ -77,7 +79,9 @@ async def get_coin_statistics(
 
         return {
             "data": [res.to_dict(orient="records")[0]],
-            "isLoggedIn": is_logged_in
+            "isLoggedIn": is_logged_in,
+            "usersData": users_data
         }
     except Exception as e:
+        print(e, "ASDASD")
         raise HTTPException(status_code=500, detail=f"Error with getting statistics for {crypto}: {e}")
