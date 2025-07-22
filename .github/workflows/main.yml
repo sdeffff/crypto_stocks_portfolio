@@ -5,7 +5,7 @@ on: [push, pull_request]
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -13,29 +13,30 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       
+      - name: Build Docker Image
+        run: | 
+          docker build -t tracker-tests .
+
+      - name: Docker image saving
+        run: |
+          docker save tracker-tests | gzip > tracker-tests.tar.gz
+
+      - uses: actions/upload-artifact@v3 
+        with:
+          name: tracker-tests-image
+          path: tracker-tests.tar.gz
 
   test:
-    needs: build
     runs-on: ubuntu-latest
+    needs: build
 
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.x
-
-      - name: Install dependencies
+      - name: Run Tests
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run Pytest
-        run: |
-          docker build -t tracker-tests .
-          docker run --rm -e PYTHONPATH=. tracker-tests pytest ./__tests__
+          docker run --rm -e PYTHONPATH=. tracker-tests pytest ./__tests__ -s -v
         working-directory: ./
         continue-on-error: false
         
