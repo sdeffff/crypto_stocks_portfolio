@@ -77,6 +77,6 @@ class StatisticsData(BaseModel):
 
 
 class StatisticsResponse(BaseModel):
-    data: List[StatisticsData]
+    statsData: List[StatisticsData]
     isLoggedIn: bool
     usersData: Union[isUserLoggedInType, dict]

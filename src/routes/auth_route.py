@@ -21,7 +21,7 @@ load_dotenv()
 router = APIRouter()
 
 
-@router.post("/register", status_code=200)
+@router.post("/register", status_code=201)
 async def register(
     user_data: UserType,
     res: Response
@@ -43,14 +43,14 @@ async def register(
         send_verification_email(user_data.email, res)
 
         return JSONResponse(
-            status_code=200,
+            status_code=201,
             content="Verification code was sent to your email!"
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Happened some error with registration: {e}")
+        raise HTTPException(status_code=403, detail=f"Happened some error with registration: {e}")
 
 
-@router.post("/email-verification")
+@router.post("/email-verification", status_code=202)
 async def verify_email(code: CodeRequest, req: Request, res: Response):
     try:
         verif_status = check_code(req, code.code)
@@ -69,7 +69,7 @@ async def verify_email(code: CodeRequest, req: Request, res: Response):
         return "Code you provided is incorrect, try again!"
 
 
-@router.post("/login", status_code=200)
+@router.post("/login", status_code=202)
 async def login(data: LoginType):
     if not check_verified(data.email):
         raise HTTPException(status_code=403, detail="You didn't verify your email")
@@ -120,7 +120,7 @@ async def login(data: LoginType):
 
         return res
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Happened some error with login: {e}")
+        raise HTTPException(status_code=403, detail=f"Happened some error with login: {e}")
 
 
 @router.delete("/logout", status_code=200)

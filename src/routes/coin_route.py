@@ -51,12 +51,12 @@ async def get_coin_list(
         sorted_df = filtered_df.sort_values(by=sort_column, ascending=(True if sort_order == "asc" else False)).dropna()
 
         return {
-            "data": sorted_df.head(payload.limit).to_dict(orient="records"),
+            "assetsData": sorted_df.head(payload.limit).to_dict(orient="records"),
             "isLoggedIn": is_logged_in,
             "usersData": users_data
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Happened some error with getting coins data: {e}")
+        raise HTTPException(status_code=403, detail=f"Happened some error with getting coins data: {e}")
 
 
 @router.get("/statistics/",
@@ -72,15 +72,17 @@ async def get_coin_statistics(
         is_logged_in = await check_tokens(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
         users_data = await check_users_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
 
+        if crypto == "":
+            raise HTTPException(status_code=409, detail="You cannot use empty string as crypto!")
+
         data = await get_coin_stats(crypto)
 
         res = pd.DataFrame(data)[["name", "image", "current_price", "high_24h", "low_24h", "sparkline_in_7d", "price_change_percentage_24h", "price_change_percentage_7d_in_currency"]].rename(columns={"high_24h": "high", "low_24h": "low"})
 
         return {
-            "data": [res.to_dict(orient="records")[0]],
+            "statsData": [res.to_dict(orient="records")[0]],
             "isLoggedIn": is_logged_in,
             "usersData": users_data
         }
     except Exception as e:
-        print(e, "ASDASD")
-        raise HTTPException(status_code=500, detail=f"Error with getting statistics for {crypto}: {e}")
+        raise HTTPException(status_code=409, detail=f"Error with getting statistics for {crypto}: {e}")

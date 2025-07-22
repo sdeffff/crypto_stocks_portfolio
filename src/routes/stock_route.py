@@ -27,7 +27,7 @@ async def get_stock_list(
         data = await get_stock_price(stock_name=stock, sort_by=sort_by, sort_order=sort_order)
 
         return {
-            "data": data,
+            "assetsData": data,
             "isLoggedin": is_logged_in,
             "usersData": users_data
         }
@@ -50,7 +50,7 @@ async def get_stock_statistics(
         data = await get_stock_stats(stock)
 
         return {
-            "data": data,
+            "statsData": data,
             "isLoggedIn": is_logged_in,
             "usersData": users_data
         }

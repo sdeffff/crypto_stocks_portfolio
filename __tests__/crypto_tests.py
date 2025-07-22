@@ -41,32 +41,30 @@ def patch_coin_gecko_fail():
         mock_cg.get_coins_markets.side_effect = Exception("API rate limit exceeded")
         yield mock_cg
     
+@pytest.fixture
+def mock_coins_data():
+    return [
+        {
+            "id": "bitcoin",
+            "symbol": "btc",
+            "image": "https://example.com/bitcoin.png",
+            "current_price": 45000.0,
+            "market_cap": 850000000000,
+            "market_cap_rank": 1,
+            "price_change_percentage_24h": 2.5
+        },
+        {
+            "id": "ethereum",
+            "symbol": "eth",
+            "image": "https://example.com/ethereum.png",
+            "current_price": 3200.0,
+            "market_cap": 380000000000,
+            "market_cap_rank": 2,
+            "price_change_percentage_24h": -1.2
+        }
+    ]
 
-class TestCryptoEndpoints:
-    @pytest.fixture
-    def mock_coins_data(self):
-        return [
-            {
-                "id": "bitcoin",
-                "symbol": "btc",
-                "image": "https://example.com/bitcoin.png",
-                "current_price": 45000.0,
-                "market_cap": 850000000000,
-                "market_cap_rank": 1,
-                "price_change_percentage_24h": 2.5
-            },
-            {
-                "id": "ethereum",
-                "symbol": "eth",
-                "image": "https://example.com/ethereum.png",
-                "current_price": 3200.0,
-                "market_cap": 380000000000,
-                "market_cap_rank": 2,
-                "price_change_percentage_24h": -1.2
-            }
-        ]
-    
-
+class TestCryptoListEndpoint:
     @pytest.mark.asyncio
     async def test_get_coin_list_success(self, client, mock_auth_success, mock_coins_data):
         with patch('src.routes.coin_route.cg') as mock_cg:
@@ -85,6 +83,33 @@ class TestCryptoEndpoints:
                 "page": 1,
                 "sort_by": "current_price",
                 "sort_order": "desc",
+            }
+        )
+
+        data = res.json()
+
+        assert res.status_code == 200
+        assert "isLoggedIn" in data
+        assert "usersData" in data
+
+    @pytest.mark.asyncio
+    async def test_get_coin_list_different_params(self, client, mock_auth_success, mock_coins_data):
+        with patch('src.routes.coin_route.cg') as mock_cg:
+            mock_cg.get_coins_markets.return_value = mock_coins_data
+            
+        payload = {
+            "currency": "eur",
+            "limit": 100,
+            "names": False
+        }
+        
+        res = client.post(
+            "/crypto/crypto-list",
+            json=payload,
+            params={
+                "page": 1,
+                "sort_by": "market_cap",
+                "sort_order": "asc",
             }
         )
 
@@ -142,8 +167,8 @@ class TestCryptoEndpoints:
         assert "isLoggedIn" in data
         assert "usersData" in data
 
-        assert len(data["data"]) == 1
-        assert data["data"][0]["id"] == "bitcoin"
+        assert len(data["assetsData"]) == 1
+        assert data["assetsData"][0]["id"] == "bitcoin"
 
 
     @pytest.mark.asyncio
@@ -163,4 +188,77 @@ class TestCryptoEndpoints:
             }
         )
 
-        assert res.status_code == 500
+        assert res.status_code == 403
+
+
+class TestCryptoStatisticsEndpoint:
+    @pytest.mark.asyncio
+    async def test_get_crypto_stats_success(self, client, mock_auth_success, mock_coins_data):
+        with patch('src.routes.coin_route.cg') as mock_cg:
+            mock_cg.get_coins_markets.return_value = mock_coins_data
+
+        res = client.get(
+            "/crypto/statistics",
+            params={
+                "crypto": "bitcoin"
+            }
+        )
+
+        result = res.json()
+
+        assert res.status_code == 200
+
+        assert "isLoggedIn" in result
+        assert "usersData" in result
+        assert len(result["statsData"]) == 1
+        assert "sparkline_in_7d" in result["statsData"][0] and "name" in result["statsData"][0] and "image" in result["statsData"][0]
+
+
+    @pytest.mark.asyncio
+    async def test_get_crypto_stats_another_crypto(self, client, mock_auth_success, mock_coins_data):
+        with patch('src.routes.coin_route.cg') as mock_cg:
+            mock_cg.get_coins_markets.return_value = mock_coins_data
+
+        res = client.get(
+            "/crypto/statistics",
+            params={
+                "crypto": "ethereum"
+            }
+        )
+
+        result = res.json()
+
+        assert res.status_code == 200
+
+        assert "isLoggedIn" in result
+        assert "usersData" in result
+        assert len(result["statsData"]) == 1
+        assert "sparkline_in_7d" in result["statsData"][0]
+
+    @pytest.mark.asyncio
+    async def test_get_crypto_stats_wrong_crypto(self, client, mock_auth_success, mock_coins_data):
+        with patch('src.routes.coin_route.cg') as mock_cg:
+            mock_cg.get_coins_markets.return_value = mock_coins_data
+
+        res = client.get(
+            "/crypto/statistics",
+            params={
+                "crypto": "ethreum"
+            }
+        )
+
+        assert res.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_get_crypto_stats_empty(self, client, mock_auth_success, mock_coins_data):
+        with patch('src.routes.coin_route.cg') as mock_cg:
+            mock_cg.get_coins_markets.return_value = mock_coins_data
+
+        res = client.get(
+            "/crypto/statistics",
+            params={
+                "crypto": ""
+            }
+        )
+
+        assert res.status_code == 409
