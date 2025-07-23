@@ -2,18 +2,14 @@ import sys
 import os
 
 import pytest
-import pandas as pd
 
-from unittest.mock import MagicMock, AsyncMock, patch
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
-from fastapi import FastAPI
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from src.main import app
-
-print(os.path.abspath(os.path.join(os.path.dirname(__file__))))
 
 @pytest.fixture
 def client():
@@ -188,7 +184,7 @@ class TestCryptoListEndpoint:
             }
         )
 
-        assert res.status_code == 403
+        assert res.status_code == 409
 
 
 class TestCryptoStatisticsEndpoint:

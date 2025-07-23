@@ -75,7 +75,7 @@ async def get_stock_price(
             )
 
             if df.empty:
-                return [{"msg": f"No data found for {stock_name}"}]
+                raise HTTPException(status_code=409, detail=[{"msg": f"No data found for {stock_name}"}])
 
             res = []
             latest = df.iloc[-1]
@@ -85,13 +85,13 @@ async def get_stock_price(
 
             res.append({
                 "id": stock_name.upper(),
-                'image': f"https://logo.clearbit.com/{info.get('website', ticker.lower())}",
+                'image': f"https://logo.clearbit.com/{info.get('website', stock_name.lower())}",
                 "date": df.index[-1].strftime('%Y-%m-%d'),
-                "open": float(latest["Open"]),
-                "current_price": float(latest["Close"]),
-                "high": float(latest["High"]),
-                "low": float(latest["Low"]),
-                "market_cap": int(latest["Volume"]),
+                "open": float(latest["Open"].iloc[-1]),
+                "current_price": float(latest["Close"].iloc[-1]),
+                "high": float(latest["High"].iloc[-1]),
+                "low": float(latest["Low"].iloc[-1]),
+                "market_cap": int(latest["Volume"].iloc[-1]),
             })
 
             return res

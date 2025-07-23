@@ -56,7 +56,7 @@ async def get_coin_list(
             "usersData": users_data
         }
     except Exception as e:
-        raise HTTPException(status_code=403, detail=f"Happened some error with getting coins data: {e}")
+        raise HTTPException(status_code=409, detail=f"Happened some error with getting coins data: {e}")
 
 
 @router.get("/statistics/",

@@ -28,11 +28,12 @@ async def get_stock_list(
 
         return {
             "assetsData": data,
-            "isLoggedin": is_logged_in,
+            "isLoggedIn": is_logged_in,
             "usersData": users_data
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{e}")
+        print(e)
+        raise HTTPException(status_code=409, detail=f"{e}")
 
 
 @router.get("/statistics/", status_code=200,
@@ -55,4 +56,4 @@ async def get_stock_statistics(
             "usersData": users_data
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error with getting statistics for {stock}: {e}")
+        raise HTTPException(status_code=409, detail=f"Error with getting statistics for {stock}: {e}")
