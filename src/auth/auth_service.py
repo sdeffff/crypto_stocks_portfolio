@@ -31,6 +31,17 @@ async def user_exists(session: Session, email: str) -> bool:
     return True if user else False
 
 
+async def check_user_payload(data: UserType):
+    if len(data.username) < 4:
+        raise HTTPException(status_code=400, detail="Invalid username")
+    
+    if len(data.password) < 8 or len(data.password) > 24:
+        raise HTTPException(status_code=400, detail="Invalid Password")
+    
+    if ((data.email is None) or (data.email == "") or ('@' not in data.email)) or ((data.country is None) or (data.country == "")):
+        raise HTTPException(status_code=400, detail="Invalid user data")
+
+
 async def register_user(user_data: UserType):
     try:
         new_user = (User(**user_data.model_dump()))

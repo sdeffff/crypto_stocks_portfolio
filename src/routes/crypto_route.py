@@ -27,8 +27,8 @@ async def get_coin_list(
     req: Request,
     payload: CoinsRequest, page: int = Query(1, ge=1),
     crypto: List[str] = Query(default=[]),
-    sort_by: Optional[SortByType] = Query("", min_length=0),
-    sort_order: Optional[SortOrderType] = Query("", min_length=0)
+    sort_by: Optional[SortByType] = Query(None),
+    sort_order: Optional[SortOrderType] = Query(None)
 ):
     try:
         is_logged_in = await check_tokens(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
