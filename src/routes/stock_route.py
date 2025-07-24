@@ -7,6 +7,7 @@ from src.schemas.request_types import StatisticsResponse
 from src.helpers.statistics_helper import get_stock_stats
 from src.helpers.stocks_helper import get_stock_price
 from src.auth.auth_service import check_tokens, check_users_auth
+from src.schemas.query_types import SortByType, SortOrder
 
 router = APIRouter()
 
@@ -17,8 +18,8 @@ async def get_stock_list(
     res: Response,
     req: Request,
     stock: Optional[str] = Query("", min_length=0),
-    sort_by: Optional[str] = Query("", min_length=0),
-    sort_order: Optional[str] = Query("", min_length=0)
+    sort_by: Optional[SortByType] = Query("", min_length=0),
+    sort_order: Optional[SortOrder] = Query("", min_length=0)
 ):
     try:
         is_logged_in = await check_tokens(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))

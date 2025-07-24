@@ -10,6 +10,7 @@ from pycoingecko import CoinGeckoAPI
 from src.schemas.request_types import CoinsRequest, StatisticsResponse
 from src.helpers.statistics_helper import get_coin_stats
 from src.auth.auth_service import check_tokens, check_users_auth
+from src.schemas.query_types import SortByType, SortOrderType
 
 load_dotenv()
 
@@ -26,8 +27,8 @@ async def get_coin_list(
     req: Request,
     payload: CoinsRequest, page: int = Query(1, ge=1),
     crypto: List[str] = Query(default=[]),
-    sort_by: Optional[str] = Query("", min_length=0),
-    sort_order: Optional[str] = Query("", min_length=0)
+    sort_by: Optional[SortByType] = Query("", min_length=0),
+    sort_order: Optional[SortOrderType] = Query("", min_length=0)
 ):
     try:
         is_logged_in = await check_tokens(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
