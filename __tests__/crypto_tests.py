@@ -33,7 +33,7 @@ def mock_auth_failure():
 
 @pytest.fixture
 def patch_coin_gecko_fail():
-    with patch('src.routes.coin_route.cg') as mock_cg:
+    with patch('src.routes.crypto_route.cg') as mock_cg:
         mock_cg.get_coins_markets.side_effect = Exception("API rate limit exceeded")
         yield mock_cg
     
@@ -63,7 +63,7 @@ def mock_coins_data():
 class TestCryptoListEndpoint:
     @pytest.mark.asyncio
     async def test_get_coin_list_success(self, client, mock_auth_success, mock_coins_data):
-        with patch('src.routes.coin_route.cg') as mock_cg:
+        with patch('src.routes.crypto_route.cg') as mock_cg:
             mock_cg.get_coins_markets.return_value = mock_coins_data
             
         payload = {
@@ -90,7 +90,7 @@ class TestCryptoListEndpoint:
 
     @pytest.mark.asyncio
     async def test_get_coin_list_different_params(self, client, mock_auth_success, mock_coins_data):
-        with patch('src.routes.coin_route.cg') as mock_cg:
+        with patch('src.routes.crypto_route.cg') as mock_cg:
             mock_cg.get_coins_markets.return_value = mock_coins_data
             
         payload = {
@@ -117,7 +117,7 @@ class TestCryptoListEndpoint:
 
     @pytest.mark.asyncio
     async def test_get_coin_list_without_params(self, client, mock_auth_success, mock_coins_data):
-        with patch('src.routes.coin_route.cg') as mock_cg:
+        with patch('src.routes.crypto_route.cg') as mock_cg:
             mock_cg.get_coins_markets.return_value = mock_coins_data
             
         payload = { }
@@ -141,7 +141,7 @@ class TestCryptoListEndpoint:
 
     @pytest.mark.asyncio
     async def test_get_coin_list_filtered_by_crypto(self, client, mock_auth_success, mock_coins_data):
-        with patch('src.routes.coin_route.cg') as mock_cg:
+        with patch('src.routes.crypto_route.cg') as mock_cg:
             mock_cg.get_coins_markets.return_value = mock_coins_data
             
         payload = { }
@@ -190,7 +190,7 @@ class TestCryptoListEndpoint:
 class TestCryptoStatisticsEndpoint:
     @pytest.mark.asyncio
     async def test_get_crypto_stats_success(self, client, mock_auth_success, mock_coins_data):
-        with patch('src.routes.coin_route.cg') as mock_cg:
+        with patch('src.routes.crypto_route.cg') as mock_cg:
             mock_cg.get_coins_markets.return_value = mock_coins_data
 
         res = client.get(
@@ -212,7 +212,7 @@ class TestCryptoStatisticsEndpoint:
 
     @pytest.mark.asyncio
     async def test_get_crypto_stats_another_crypto(self, client, mock_auth_success, mock_coins_data):
-        with patch('src.routes.coin_route.cg') as mock_cg:
+        with patch('src.routes.crypto_route.cg') as mock_cg:
             mock_cg.get_coins_markets.return_value = mock_coins_data
 
         res = client.get(
@@ -233,7 +233,7 @@ class TestCryptoStatisticsEndpoint:
 
     @pytest.mark.asyncio
     async def test_get_crypto_stats_wrong_crypto(self, client, mock_auth_success, mock_coins_data):
-        with patch('src.routes.coin_route.cg') as mock_cg:
+        with patch('src.routes.crypto_route.cg') as mock_cg:
             mock_cg.get_coins_markets.return_value = mock_coins_data
 
         res = client.get(
@@ -247,7 +247,7 @@ class TestCryptoStatisticsEndpoint:
 
     @pytest.mark.asyncio
     async def test_get_crypto_stats_empty(self, client, mock_auth_success, mock_coins_data):
-        with patch('src.routes.coin_route.cg') as mock_cg:
+        with patch('src.routes.crypto_route.cg') as mock_cg:
             mock_cg.get_coins_markets.return_value = mock_coins_data
 
         res = client.get(

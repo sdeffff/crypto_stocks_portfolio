@@ -45,7 +45,7 @@ async def register(
 
         send_verification_email(user_data.email, res)
 
-        return {"message": "Verification code was sent to your email!"}
+        return { "message": "Verification code was sent to your email!" }
     except Exception as e:
         raise HTTPException(status_code=403, detail=f"Happened some error with registration: {e}")
 
