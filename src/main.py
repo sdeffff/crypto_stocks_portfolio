@@ -10,12 +10,12 @@ from typing import List
 
 from src.database.db import session
 from src.models.models import User, Subscritions, Notifications
-from src.schemas.request_types import UserType, NotifyRequest
-from src.auth.auth_service import get_user_by_id, check_auth
+from src.schemas.request_types import NotifyRequest
+from src.auth.auth_service import check_auth
 
 from src.helpers.subscription_helper import addSubscription
 
-from src.routes import auth_route, coin_route, stock_route, payment_route
+from src.routes import auth_route, coin_route, stock_route, payment_route, user_route
 
 load_dotenv()
 
@@ -41,42 +41,7 @@ app.include_router(auth_route.router, prefix="/auth")
 app.include_router(coin_route.router, prefix="/crypto")
 app.include_router(stock_route.router, prefix="/stock")
 app.include_router(payment_route.router, prefix="/payment")
-
-
-@app.get("/users",
-         response_model=List[UserType],
-         response_description="Endpoint to get all of the users")
-async def get_all_users(res: Response, req: Request) -> List[UserType]:
-    try:
-        auth_data = await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
-
-        if auth_data["role"] != "admin":
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "You are not allowed to do this"}
-            )
-    except Exception as e:
-        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
-
-    return session.query(User).all()
-
-
-@app.get("/users/{uid}/profile",
-         response_description="Profile endpoint for every user")
-async def user_profile(uid: str, res: Response, req: Request):
-    try:
-        await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
-
-        user_data = await get_user_by_id(uid)
-
-        res.status_code = 200
-
-        return user_data
-    except Exception as e:
-        res.status_code = 401
-        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
-
-# Notify me when stock/crpyto 'crypto_name/stock_name' is going to be less/greater than 'value' 'currency'
+app.include_router(user_route.router, prefix="/users")
 
 
 @app.post("/alert/",
@@ -96,6 +61,7 @@ async def notify_user(payload: NotifyRequest, res: Response, req: Request):
 
 
 @app.get("/subscriptions/{uid}",
+         status_code=200,
          response_model=List[NotifyRequest],
          response_description="Get list of  all of the users subscribtions")
 async def get_subscriptions(uid: str, res: Response, req: Request) -> List[NotifyRequest]:
@@ -112,6 +78,7 @@ async def get_subscriptions(uid: str, res: Response, req: Request) -> List[Notif
 
 
 @app.get("/notifications/{uid}",
+         status_code=200,
          response_model=List[NotifyRequest],
          response_description="Get list of all notifications that were sent to the user")
 async def get_notifications(uid: str, res: Response, req: Request) -> List[NotifyRequest]:
@@ -127,7 +94,9 @@ async def get_notifications(uid: str, res: Response, req: Request) -> List[Notif
         return JSONResponse(status_code=401, content={"detail": e})
 
 
-@app.post("/buy-premium/", response_class=RedirectResponse)
+@app.post("/buy-premium/",
+          status_code=201,
+          response_class=RedirectResponse)
 async def buy_premium(res: Response, req: Request):
     try:
         auth_data = await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))

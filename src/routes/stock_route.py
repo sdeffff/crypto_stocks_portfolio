@@ -27,12 +27,13 @@ async def get_stock_list(
         data = await get_stock_price(stock_name=stock, sort_by=sort_by, sort_order=sort_order)
 
         return {
-            "data": data,
-            "isLoggedin": is_logged_in,
+            "assetsData": data,
+            "isLoggedIn": is_logged_in,
             "usersData": users_data
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{e}")
+        print(e)
+        raise HTTPException(status_code=409, detail=f"{e}")
 
 
 @router.get("/statistics/", status_code=200,
@@ -50,9 +51,9 @@ async def get_stock_statistics(
         data = await get_stock_stats(stock)
 
         return {
-            "data": data,
+            "statsData": data,
             "isLoggedIn": is_logged_in,
             "usersData": users_data
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error with getting statistics for {stock}: {e}")
+        raise HTTPException(status_code=409, detail=f"Error with getting statistics for {stock}: {e}")

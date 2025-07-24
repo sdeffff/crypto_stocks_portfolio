@@ -36,6 +36,10 @@ app.conf.update(
 )
 
 
+app.conf.beat_scheduler = 'celery.beat.PersistentScheduler'
+app.conf.scheduler_filename = '/tmp/celerybeat-schedule'
+
+
 @app.task
 def send_email(recipients: list[str], subject: str, body: str):
     try:
