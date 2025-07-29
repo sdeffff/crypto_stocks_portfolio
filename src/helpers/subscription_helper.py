@@ -3,8 +3,6 @@ from src.schemas.request_types import NotifyRequest
 from src.models.models import Subscritions, User
 from src.database.db import session
 
-"""Helper function to handle subscriptions"""
-
 
 async def addSubscription(payload: NotifyRequest, uid: int):
     user = session.query(User).filter(User.id == uid).first()
@@ -17,8 +15,6 @@ async def addSubscription(payload: NotifyRequest, uid: int):
         data = payload.model_dump()
 
         data["uid"] = uid
-
-        print(data)
 
         subscription = (Subscritions(**data))
 

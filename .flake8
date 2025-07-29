@@ -1,4 +1,4 @@
 [flake8]
 max-line-length = 1000
 ignore = W503
-exclude = .git,__pycache__,.venv,alembic,__init__.py,celery_worker.py
+exclude = .git,__pycache__,.venv,alembic,__init__.py,celery_worker.py,__tests__

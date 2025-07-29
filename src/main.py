@@ -1,227 +1,47 @@
 import os
-import pandas as pd
 import stripe
-import httpx
 
 from dotenv import load_dotenv
-from datetime import timedelta
 from fastapi import FastAPI, Response, Request, HTTPException
-from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pycoingecko import CoinGeckoAPI
 from typing import List
 
 from src.database.db import session
 from src.models.models import User, Subscritions, Notifications
-from src.schemas.request_types import UserType, LoginType, CoinsRequest, NotifyRequest, StockRequest
-from src.auth.auth_service import register_user, user_exists, create_token, get_user_by_id, check_auth
-from src.helpers.pwd_helper import hashPwd, comparePwds
+from src.schemas.request_types import NotifyRequest
+from src.auth.auth_service import check_auth
+
 from src.helpers.subscription_helper import addSubscription
-from src.helpers.stocks_helper import get_stocks, get_stock_price
+
+from src.routes import auth_route, stock_route, payment_route, user_route, crypto_route
 
 load_dotenv()
 
 app = FastAPI()
 
+allowed_origins = [
+    "http://localhost:3000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
 
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
-
-@app.get("/")
-def home():
-    return {"Data": "test"}
-
-
-@app.get("/users",
-         response_model=List[UserType],
-         response_description="Endpoint to get all of the users")
-async def get_all_users(res: Response, req: Request) -> List[UserType]:
-    try:
-        auth_data = await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
-
-        if auth_data["role"] != "admin":
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "You are not allowed to do this"}
-            )
-    except Exception as e:
-        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
-
-    return session.query(User).all()
-
-
-@app.get("/users/{uid}/profile",
-         response_description="Profile endpoint for every user")
-async def user_profile(uid: str, res: Response, req: Request):
-    try:
-        await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
-
-        user_data = await get_user_by_id(uid)
-
-        res.status_code = 200
-
-        return user_data
-    except Exception as e:
-        res.status_code = 401
-        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
-
-
-@app.post("/auth/register", status_code=200)
-async def register(user_data: UserType, res: Response):
-    if await user_exists(session, user_data.email):
-        raise HTTPException(status_code=400, detail="User with such email already exists")
-
-    try:
-        hashedPwd = (await hashPwd(user_data.password)).decode('utf-8')
-
-        user_data.password = hashedPwd
-
-        user_data.pfp = f"https://eu.ui-avatars.com/api/?name={user_data.username}"
-
-        await register_user(user_data=user_data)
-
-        res.status_code = 201
-
-        return {
-            "Message": "Registered succesfully"
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Happened some error with registration: {e}")
-
-
-@app.post("/auth/login", status_code=200)
-async def login(data: LoginType):
-    try:
-        user = session.query(User).filter(User.email == data.email).first()
-
-        doesMatch = await comparePwds(data.password, user.password)
-
-        if not doesMatch:
-            raise HTTPException(status_code=409, detail="Incorrect password for provided email")
-
-        payload = {
-            "uid": user.id,
-            "role": user.role,
-            "email": user.email
-        }
-
-        res = JSONResponse(
-            status_code=200,
-            content={
-                "message": "Logged in successfully",
-                "uid": user.id
-            }
-        )
-
-        access_token = await create_token(payload, timedelta(minutes=15), os.getenv("ACCESS_TOKEN_SECRET"))
-        refresh_token = await create_token(payload, timedelta(days=1), os.getenv("REFRESH_TOKEN_SECRET"))
-
-        res.set_cookie(
-            key="access_token",
-            value=access_token,
-            httponly=True,
-            secure=os.getenv("PROD") == "production",
-            samesite="lax",
-            max_age=15 * 60
-        )
-
-        res.set_cookie(
-            key="refresh_token",
-            value=refresh_token,
-            httponly=True,
-            secure=os.getenv("PROD") == "production",
-            samesite="lax",
-            max_age=24 * 60 * 60
-        )
-
-        return res
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Happened some error with login: {e}")
-
-
-"""API to get cryptocurrency in currency we want"""
-
-
-@app.get("/crypto/currency/{crypto_name}/{currency}",
-         status_code=200,
-         response_description="Get the information about crypto currency by name")
-async def get_crypto_price(crypto_name, currency, res: Response):
-    try:
-        data = cg.get_price(ids=str.lower(crypto_name),
-                            vs_currencies=str.lower(currency),
-                            include_market_cap=True,
-                            include_24hr_change=True,
-                            include_price_change_percentage_24h=True)
-
-        price = data[f'{crypto_name}'][currency]
-
-        formatted = f"{price:,}".replace(",", " ")
-
-        res.status_code = 200
-
-        return {
-            "data": data,
-            "price": formatted
-        }
-    except BaseException:
-        raise HTTPException(status_code=404, detail="Provided incorrect crypto currency or currency")
-
-
-@app.post("/crypto/coin-list",
-          status_code=200,
-          response_description="List of all available crypto currencies")
-async def get_coin_list(payload: CoinsRequest):
-    try:
-        data = cg.get_coins_markets(vs_currency=payload.currency or "usd", page=1)
-
-        df = None
-
-        if payload.names:
-            df = pd.DataFrame(data)[["id", "image", "current_price"]]
-        else:
-            df = pd.DataFrame(data)[["id", "symbol", "image", "current_price", "market_cap", "market_cap_rank", "price_change_percentage_24h"]]
-
-        return df.sort_values(by="current_price", ascending=False).head(payload.limit).to_dict(orient="records")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Happened some error with getting coins data: {e}")
-
-
-@app.post("/stocks/stock-list", status_code=200,
-          response_model=List[str],
-          response_description="Get list of all stocks available")
-async def get_stock_list(payload: StockRequest) -> List[str]:
-    try:
-        if payload.stock_name == "":
-            return get_stocks()
-        else:
-            av_api = f"https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords={payload.stock_name}&apikey={os.getenv('ALPHA_VANTAGE_SECRET_KEY')}"
-
-            async with httpx.AsyncClient() as client:
-                response = await client.get(av_api)
-
-            if response.status_code != 200:
-                raise HTTPException(status_code=500, detail="Happened error with server")
-
-            result = [item["1. symbol"] for item in response.json()["bestMatches"]]
-
-            return result
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Happened some error with api: {e}")
-
-
-@app.get("/stocks/{stock_name}",
-         status_code=200,
-         response_model=float,
-         response_description="Get stock price by name")
-async def get_stock_by_name(stock_name: str) -> float:
-    try:
-        result = await get_stock_price(stock_name=stock_name)
-
-        return float(result)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Happened some error with api: {e}")
-
-# Notify me when stock/crpyto 'crypto_name/stock_name' is going to be less/greater than 'value' 'currency'
+app.include_router(auth_route.router, prefix="/auth")
+app.include_router(crypto_route.router, prefix="/crypto")
+app.include_router(stock_route.router, prefix="/stock")
+app.include_router(payment_route.router, prefix="/payment")
+app.include_router(user_route.router, prefix="/users")
 
 
 @app.post("/alert/",
@@ -241,6 +61,7 @@ async def notify_user(payload: NotifyRequest, res: Response, req: Request):
 
 
 @app.get("/subscriptions/{uid}",
+         status_code=200,
          response_model=List[NotifyRequest],
          response_description="Get list of  all of the users subscribtions")
 async def get_subscriptions(uid: str, res: Response, req: Request) -> List[NotifyRequest]:
@@ -257,6 +78,7 @@ async def get_subscriptions(uid: str, res: Response, req: Request) -> List[Notif
 
 
 @app.get("/notifications/{uid}",
+         status_code=200,
          response_model=List[NotifyRequest],
          response_description="Get list of all notifications that were sent to the user")
 async def get_notifications(uid: str, res: Response, req: Request) -> List[NotifyRequest]:
@@ -272,7 +94,9 @@ async def get_notifications(uid: str, res: Response, req: Request) -> List[Notif
         return JSONResponse(status_code=401, content={"detail": e})
 
 
-@app.post("/buy-premium/", response_class=RedirectResponse)
+@app.post("/buy-premium/",
+          status_code=201,
+          response_class=RedirectResponse)
 async def buy_premium(res: Response, req: Request):
     try:
         auth_data = await check_auth(res, req.cookies.get("access_token"), req.cookies.get("refresh_token"))
@@ -310,27 +134,3 @@ async def buy_premium(res: Response, req: Request):
             raise HTTPException(status_code=500, detail=f"Happened some error with checkout session: {e}")
     except Exception as e:
         raise HTTPException(status_code=409, detail=f"{e}")
-
-
-@app.get("/payment/success", response_class=HTMLResponse)
-async def payment_success(req: Request):
-    session_id = req.query_params.get("session_id")
-
-    try:
-        stripe_session = stripe.checkout.Session.retrieve(session_id)
-        users_email = stripe_session.get("customer_email")
-
-        user = session.query(User).filter(User.email == users_email).first()
-
-        if user:
-            user.premium = True
-            session.commit()
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Happened error with payment: {e}")
-
-    return "<h1>Payment Successful! You're now a premium user 🎉</h1>"
-
-
-@app.get("/payment/fail", response_class=HTMLResponse)
-async def payment_fail(req: Request):
-    return "<h1>Payment was unsucessfull, try again later!</h1>"

@@ -1,0 +1,95 @@
+name: Tracker PipeLines
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      
+      - name: Build Docker Image
+        run: | 
+          docker build -t tracker-tests .
+
+      - name: Docker image saving
+        run: |
+          docker save tracker-tests | gzip > tracker-tests.tar.gz
+
+      - uses: actions/upload-artifact@v4 
+        with:
+          name: tracker-tests-image
+          path: tracker-tests.tar.gz
+
+  test:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: .env file Creation
+        run: |
+            cat <<EOF > .env
+            DB_HOST=${{ secrets.DB_HOST }}
+            DB_PORT=${{ secrets.DB_PORT }}
+            DB_DATABASE=${{ secrets.DB_DATABASE }}
+            DB_USER=${{ secrets.DB_USER }}
+            DB_PWD=${{ secrets.DB_PWD }}
+            DB_CONN_LINE=${{ secrets.DB_CONN_LINE }}
+            REDIS_URL=${{ secrets.REDIS_URL }}
+            GECKO_API_KEY=${{ secrets.GECKO_API_KEY }}
+            ACCESS_TOKEN_SECRET=${{ secrets.ACCESS_TOKEN_SECRET }}
+            REFRESH_TOKEN_SECRET=${{ secrets.REFRESH_TOKEN_SECRET }}
+            JWT_ALGORITHM=${{ secrets.JWT_ALGORITHM }}
+            MAIL_USERNAME=${{ secrets.MAIL_USERNAME }}
+            MAIL_PASSWORD=${{ secrets.MAIL_PASSWORD }}
+            MAIL_SERVER=${{ secrets.MAIL_SERVER }}
+            MAIL_FROM_NAME=${{ secrets.MAIL_FROM_NAME }}
+            MAIL_PORT=${{ secrets.MAIL_PORT }}
+            STRIPE_PUBLISH_KEY=${{ secrets.STRIPE_PUBLISH_KEY }}
+            STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}
+            STRIPE_WEBHOOK_KEY=${{ secrets.STRIPE_WEBHOOK_KEY }}
+            EOF
+
+      - name: Download Docker image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tracker-tests-image
+
+      - name: Load Docker image
+        run: |
+          gzip -d tracker-tests.tar.gz
+          docker load < tracker-tests.tar
+
+      - name: Run Tests
+        run: |
+          docker run --rm --env-file .env -e PYTHONPATH=. tracker-tests pytest ./__tests__ -s -v
+        working-directory: ./
+        continue-on-error: false
+      
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up SSH agent
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Add remote host to known_hosts
+        run: ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy via SSH
+        run: ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} 'bash ~/bin/bash/deploy.sh'
