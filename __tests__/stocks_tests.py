@@ -81,8 +81,6 @@ class TestStockListEndpoint:
 
         data = res.json()
 
-        print(data)
-
         assert res.status_code == 200
         assert "isLoggedIn" in data
         assert "usersData" in data
@@ -102,8 +100,6 @@ class TestStockListEndpoint:
         )
 
         data = res.json()
-
-        print(data)
 
         assert res.status_code == 200
         assert "isLoggedIn" in data
