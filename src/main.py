@@ -15,7 +15,7 @@ from src.auth.auth_service import check_auth
 
 from src.helpers.subscription_helper import addSubscription
 
-from src.routes import auth_route, coin_route, stock_route, payment_route, user_route
+from src.routes import auth_route, stock_route, payment_route, user_route, crypto_route
 
 load_dotenv()
 
@@ -38,7 +38,7 @@ cg = CoinGeckoAPI(demo_api_key=os.getenv('GECKO_API_KEY'))
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
 
 app.include_router(auth_route.router, prefix="/auth")
-app.include_router(coin_route.router, prefix="/crypto")
+app.include_router(crypto_route.router, prefix="/crypto")
 app.include_router(stock_route.router, prefix="/stock")
 app.include_router(payment_route.router, prefix="/payment")
 app.include_router(user_route.router, prefix="/users")

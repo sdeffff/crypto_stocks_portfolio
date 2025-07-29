@@ -12,7 +12,7 @@ from src.schemas.request_types import UserType, LoginType, CodeRequest
 from src.auth.auth_service import register_user, user_exists
 from src.helpers.pwd_helper import comparePwds, hashPwd
 from src.helpers.send_verif import send_verification_email, check_verified, check_code
-from src.auth.auth_service import create_token, clear_tokens
+from src.auth.auth_service import create_token, clear_tokens, check_user_payload
 
 from src.database.db import session
 
@@ -29,6 +29,9 @@ async def register(
     if await user_exists(session, user_data.email):
         raise HTTPException(status_code=406, detail="User with such email already exists")
 
+    if await check_user_payload(user_data):
+        raise HTTPException(status_code=400, detail="Invalid input for registration")
+
     try:
         hashedPwd = (await hashPwd(user_data.password)).decode('utf-8')
 
@@ -42,10 +45,7 @@ async def register(
 
         send_verification_email(user_data.email, res)
 
-        return JSONResponse(
-            status_code=201,
-            content="Verification code was sent to your email!"
-        )
+        return {"message": "Verification code was sent to your email!"}
     except Exception as e:
         raise HTTPException(status_code=403, detail=f"Happened some error with registration: {e}")
 
