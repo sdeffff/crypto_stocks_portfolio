@@ -93,21 +93,21 @@ jobs:
 
       - name: Upload project to server
         run: |
-          scp -r -o StrictHostKeyChecking=no ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/fastapi-app
+          rsync -avz --exclude='.git' --exclude='.venv' ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:~/tracker-app
 
       - name: Deploy via SSH
         run: |
           ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} bash -s << 'EOF'
             set -e
 
-            cd ~/fastapi-app
+            cd ~/tracker-app
 
             python3 -m venv .venv
             source .venv/bin/activate
 
-            git pull origin main
+            pip install --upgrade pip
             pip install -r requirements.txt
 
             tmux kill-session -t fastapi || true
-            tmux new-session -d -s fastapi "uvicorn main:app --host 0.0.0.0 --port 8000"
+            tmux new-session -d -s fastapi ".venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000"
           EOF
