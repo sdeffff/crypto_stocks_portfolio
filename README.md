@@ -47,3 +47,5 @@ After this, application will be accessible on: `http://localhost:8000` <br>
 And you will be able to find information about endpoints on `http://localhost:8000/docs`
 
 #### And thats it, happy using 🚀
+
+# AMSKODNANS
