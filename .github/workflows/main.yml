@@ -102,6 +102,7 @@ jobs:
 
             cd ~/fastapi-app
 
+            python3 -m venv .venv
             source .venv/bin/activate
 
             git pull origin main
