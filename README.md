@@ -16,6 +16,7 @@ Also users can check price of crypto currencies and stocks in real time.
 * <div style="display: flex; align-items: center"><img src="https://img.shields.io/badge/JWT-black?style=for-the-badge&logo=JSON%20web%20tokens"> - Authentication, Authorization</div>
 * <div style="display: flex; align-items: center;"><img src="https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white"> - Database hosting</div>
 * <div style="display: flex; align-items: center;"><img src="https://img.shields.io/badge/docker-257bd6?style=for-the-badge&logo=docker&logoColor=white"> - Application containerization</div>
+* <div style="display: flex; align-items: center;"><img src="https://img.shields.io/badge/-Amazon AWS-232F3E?style=flat&logo=amazonaws&logoColor=white"/> - Application deployment on EC2 instance + automatic deployment using github pipelines</div>
 
 ## Additional APIs 🌐
 * CoinGeckoAPI - to get the latest information about cryptocurrencies
